@@ -1,6 +1,6 @@
 [package]
 name = "crownlink-linux"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.97"
 description = "CrownOS cross-device hub: pairing, sync and low-latency media with nearby devices"
