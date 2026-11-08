@@ -11,10 +11,10 @@ use std::path::Path;
 use std::process::Command;
 use std::time::{Duration, Instant};
 
-use crownconnect_linux::media::audio::opus::{
+use crownlink_linux::media::audio::opus::{
     VoiceChannels, FRAME_SAMPLES, MAX_PACKET_BYTES, SAMPLE_RATE,
 };
-use crownconnect_linux::media::audio::{
+use crownlink_linux::media::audio::{
     pcm_ring, VirtualMicrophone, VoiceConfig, VoiceDecoder, VoiceEncoder,
 };
 
@@ -173,7 +173,7 @@ fn virtual_microphone_appears_and_disappears_in_pipewire() {
         return;
     }
     let device = format!("Test Phone {}", std::process::id());
-    let description = format!("CrownConnect Microphone ({device})");
+    let description = format!("CrownLink Microphone ({device})");
     let (mut writer, reader) = pcm_ring(48_000, 960, 4800);
     writer.push(&[0.0; 960]);
     let microphone =

@@ -10,11 +10,11 @@ use std::os::fd::AsFd;
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
-use crownconnect_linux::media::present::access_unit::{Fill, UnitReader};
-use crownconnect_linux::media::present::input::write_message;
-use crownconnect_linux::media::present::{PresentationStats, Presenter};
-use crownconnect_linux::media::video::{VaapiDevice, VideoCodec, VideoDecoder};
-use crownconnect_linux::util::latency::{LatencySummary, LatencyWindow};
+use crownlink_linux::media::present::access_unit::{Fill, UnitReader};
+use crownlink_linux::media::present::input::write_message;
+use crownlink_linux::media::present::{PresentationStats, Presenter};
+use crownlink_linux::media::video::{VaapiDevice, VideoCodec, VideoDecoder};
+use crownlink_linux::util::latency::{LatencySummary, LatencyWindow};
 use rustix::fs::{fcntl_getfl, fcntl_setfl, OFlags};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -49,7 +49,7 @@ fn parse_options() -> Result<Options> {
                 };
             }
             "--title" => options.title = value()?,
-            other => bail!("unknown argument {other}; usage: crownconnect-viewer [--codec hevc|h264|av1] [--title T]"),
+            other => bail!("unknown argument {other}; usage: crownlink-viewer [--codec hevc|h264|av1] [--title T]"),
         }
     }
     Ok(options)

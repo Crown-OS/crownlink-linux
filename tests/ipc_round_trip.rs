@@ -9,7 +9,7 @@ use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use crownconnect_linux::ipc::proto::{
+use crownlink_linux::ipc::proto::{
     self, Battery, CameraOptions, DeviceClass, DeviceId, DeviceInfo, Edge, Feature, FeatureSet,
     FeatureState, LinkKind, MirrorOptions, MonitorOptions, PairingOffer, Topic,
 };
@@ -58,7 +58,7 @@ impl proto::Handler for FakeHub {
 
     fn pairing_begin(&mut self) -> Result<PairingOffer, RemoteError> {
         Ok(PairingOffer {
-            qr: "crownconnect:offer".into(),
+            qr: "crownlink:offer".into(),
             expires_unix_ms: 1,
         })
     }
@@ -169,7 +169,7 @@ impl proto::Handler for FakeHub {
 }
 
 fn socket_directory() -> PathBuf {
-    std::env::temp_dir().join(format!("crownconnect-ipc-{}", std::process::id()))
+    std::env::temp_dir().join(format!("crownlink-ipc-{}", std::process::id()))
 }
 
 fn spawn_hub(directory: PathBuf) -> JoinHandle<FakeHub> {

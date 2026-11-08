@@ -1,4 +1,4 @@
-//! The `crownconnect` IPC service: answers what the daemon knows itself, forwards what needs a
+//! The `crownlink` IPC service: answers what the daemon knows itself, forwards what needs a
 //! paired device to the peer runtime, and broadcasts what the runtime reports.
 
 mod convert;
@@ -28,9 +28,9 @@ const PEER_BUSY: &str = "peer runtime unavailable: its queue is full or it has s
 
 #[derive(Debug, thiserror::Error)]
 pub enum IpcServerError {
-    #[error("crownconnect IPC: {0}")]
+    #[error("crownlink IPC: {0}")]
     Ipc(#[from] crownos_ipc::Error),
-    #[error("crownconnect IPC: {0}")]
+    #[error("crownlink IPC: {0}")]
     Io(#[from] std::io::Error),
 }
 

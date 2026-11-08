@@ -32,7 +32,7 @@ use crate::media::video::{DecodedFrame, DmabufFrame};
 use crate::util::latency::LatencySummary;
 use crate::util::numeric::saturating_i32;
 
-const APP_ID: &str = "crownconnect-viewer";
+const APP_ID: &str = "crownlink-viewer";
 /// Height a new window opens at when the compositor leaves the size to us.
 const DEFAULT_WINDOW_HEIGHT: u32 = 960;
 const DMABUF_VERSION: u32 = 3;

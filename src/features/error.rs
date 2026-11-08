@@ -9,9 +9,7 @@ pub enum FeatureError {
     Media(#[from] MediaError),
     #[error(transparent)]
     Wayland(#[from] WaylandError),
-    #[error(
-        "no v4l2loopback camera: load the v4l2loopback module or set CROWNCONNECT_CAMERA_DEVICE"
-    )]
+    #[error("no v4l2loopback camera: load the v4l2loopback module or set CROWNLINK_CAMERA_DEVICE")]
     NoLoopbackCamera,
     #[error("the screen capture stopped ({0:?})")]
     CaptureStopped(StopCause),

@@ -12,10 +12,10 @@ mod support;
 
 use std::sync::mpsc as std_mpsc;
 
-use crownconnect_linux::ipc::proto::{
+use crownlink_linux::ipc::proto::{
     self, CameraLens, CameraOptions, Feature, FeatureState, Topic, VideoLimits,
 };
-use crownconnect_linux::state::{ClipboardSnapshot, LocalState, MediaSnapshot};
+use crownlink_linux::state::{ClipboardSnapshot, LocalState, MediaSnapshot};
 use llts_node::{MediaRequest, MediaRole};
 use llts_signaling::message::Media;
 use llts_signaling::state::{Battery, HybridTimestamp};

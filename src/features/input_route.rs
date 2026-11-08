@@ -31,7 +31,7 @@ pub(crate) fn connect_injector(
     let shared = SharedInjector::default();
     let slot = Arc::clone(&shared);
     let spawned = std::thread::Builder::new()
-        .name("crownconnect-injector-connect".to_owned())
+        .name("crownlink-injector-connect".to_owned())
         .spawn(move || match platform.injector(output) {
             Ok(injector) => {
                 let _ = slot.set(injector);

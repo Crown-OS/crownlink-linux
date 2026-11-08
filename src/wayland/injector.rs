@@ -83,10 +83,9 @@ impl Injector {
     pub fn connect(target: Option<String>) -> Result<Self, WaylandError> {
         let target_size = SharedSize::default();
         let shared = Arc::clone(&target_size);
-        let worker =
-            WorkerHandle::spawn_blocking("crownconnect-injector", move |globals, queue| {
-                InjectorState::bind(globals, queue, target, shared)
-            })?;
+        let worker = WorkerHandle::spawn_blocking("crownlink-injector", move |globals, queue| {
+            InjectorState::bind(globals, queue, target, shared)
+        })?;
         Ok(Self {
             worker,
             target_size,

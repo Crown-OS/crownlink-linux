@@ -130,7 +130,7 @@ impl ClipboardTracker {
 }
 
 async fn fetch(client: &mut AsyncClient, id: u64) -> Result<(String, Vec<u8>), ClipboardError> {
-    let sink: OwnedFd = memfd_create("crownconnect-clipboard", MemfdFlags::CLOEXEC)?;
+    let sink: OwnedFd = memfd_create("crownlink-clipboard", MemfdFlags::CLOEXEC)?;
     let for_service = sink.try_clone()?;
     let mime = client
         .call::<protocol::get>(&protocol::get { id }, vec![for_service])

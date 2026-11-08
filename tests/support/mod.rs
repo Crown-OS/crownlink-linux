@@ -13,23 +13,23 @@ use std::sync::mpsc as std_mpsc;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use crownconnect_linux::config::{default_features, DaemonConfig, DaemonPaths};
-use crownconnect_linux::discovery;
-use crownconnect_linux::ipc::proto::{self, DeviceId, DeviceInfo};
-use crownconnect_linux::ipc::server::IpcServer;
-use crownconnect_linux::peer::{runtime, MediaCoordinator, PeerCommand, PeerServices};
-use crownconnect_linux::state::{LocalCommandReceivers, LocalControls, LocalState};
+use crownlink_linux::config::{default_features, DaemonConfig, DaemonPaths};
+use crownlink_linux::discovery;
+use crownlink_linux::ipc::proto::{self, DeviceId, DeviceInfo};
+use crownlink_linux::ipc::server::IpcServer;
+use crownlink_linux::peer::{runtime, MediaCoordinator, PeerCommand, PeerServices};
+use crownlink_linux::state::{LocalCommandReceivers, LocalControls, LocalState};
 use tokio::sync::{mpsc, oneshot};
 
 pub const REPLY: Option<Duration> = Some(Duration::from_secs(10));
 pub const PATIENCE: Duration = Duration::from_secs(20);
 pub const POLL: Duration = Duration::from_millis(10);
 
-/// Logs the daemons' tracing to stderr when `CROWNCONNECT_TEST_LOG` holds a filter.
+/// Logs the daemons' tracing to stderr when `CROWNLINK_TEST_LOG` holds a filter.
 pub fn init_logging() {
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;
-    let Some(filter) = std::env::var("CROWNCONNECT_TEST_LOG")
+    let Some(filter) = std::env::var("CROWNLINK_TEST_LOG")
         .ok()
         .and_then(|filter| filter.parse::<tracing_subscriber::filter::Targets>().ok())
     else {
@@ -62,10 +62,8 @@ pub struct Home {
 
 impl Home {
     pub fn new(name: &'static str, port: u16, peer_port: u16) -> Self {
-        let root = std::env::temp_dir().join(format!(
-            "crownconnect-daemons-{}-{name}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("crownlink-daemons-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(&root).expect("a scratch directory");
         Self {
@@ -96,7 +94,7 @@ impl Home {
     pub fn config(&self) -> DaemonConfig {
         DaemonConfig {
             paths: DaemonPaths::in_directories(
-                self.data_home().join("crownos/crownconnect"),
+                self.data_home().join("crownos/crownlink"),
                 &self.data_home(),
                 Some(self.ipc_directory()),
             ),

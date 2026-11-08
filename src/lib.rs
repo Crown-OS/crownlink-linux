@@ -1,7 +1,7 @@
 //! CrownOS cross-device hub.
 //!
 //! Built with `default-features = false`, the library is only the
-//! [`ipc::proto`] schema of the `crownconnect` service, so clients get the
+//! [`ipc::proto`] schema of the `crownlink` service, so clients get the
 //! typed contract without the daemon.
 
 pub mod ipc;

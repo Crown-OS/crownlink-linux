@@ -4,16 +4,16 @@
 use std::future::Future;
 
 use anyhow::{anyhow, Context, Result};
-use crownconnect_linux::bluetooth::telephony;
-use crownconnect_linux::config::DaemonConfig;
-use crownconnect_linux::discovery::{self, ble, mdns};
-use crownconnect_linux::ipc::server::IpcServer;
+use crownlink_linux::bluetooth::telephony;
+use crownlink_linux::config::DaemonConfig;
+use crownlink_linux::discovery::{self, ble, mdns};
+use crownlink_linux::ipc::server::IpcServer;
 use std::sync::Arc;
 
-use crownconnect_linux::features::{FeatureCoordinator, LinuxPlatform};
-use crownconnect_linux::peer::{runtime, PeerCommand, PeerServices};
-use crownconnect_linux::state::publishers::{battery, clipboard, hotspot, media, volume};
-use crownconnect_linux::state::{session_lock, state_channel, LocalControls};
+use crownlink_linux::features::{FeatureCoordinator, LinuxPlatform};
+use crownlink_linux::peer::{runtime, PeerCommand, PeerServices};
+use crownlink_linux::state::publishers::{battery, clipboard, hotspot, media, volume};
+use crownlink_linux::state::{session_lock, state_channel, LocalControls};
 use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 
@@ -80,7 +80,7 @@ async fn supervise(config: DaemonConfig) -> Result<()> {
         peer.clone(),
         daemon_event_receiver,
     )
-    .context("cannot bind the crownconnect IPC service")?;
+    .context("cannot bind the crownlink IPC service")?;
     let (sink, local_states) = state_channel();
     let (controls, commands) = LocalControls::channels();
     let discovery = discovery::channels();

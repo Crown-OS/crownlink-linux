@@ -14,7 +14,7 @@ pub fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let temporary = path.with_extension("crownconnect.tmp");
+    let temporary = path.with_extension("crownlink.tmp");
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .truncate(true)
@@ -48,7 +48,7 @@ mod tests {
     #[test]
     fn files_are_replaced_whole_and_private() -> std::io::Result<()> {
         let path = std::env::temp_dir()
-            .join(format!("crownconnect-private-{}", std::process::id()))
+            .join(format!("crownlink-private-{}", std::process::id()))
             .join("file");
         assert_eq!(read_if_present(&path)?, None);
         write_private(&path, b"first")?;

@@ -34,7 +34,7 @@ use crate::peer::PeerCommand;
 use crate::state::LocalControls;
 use event_loop::PeerLoop;
 
-const THREAD_NAME: &str = "crownconnect-peer";
+const THREAD_NAME: &str = "crownlink-peer";
 
 /// What the runtime reports to and acts through.
 #[derive(Debug)]

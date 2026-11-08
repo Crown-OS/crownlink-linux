@@ -33,7 +33,7 @@ pub(crate) fn encode_profile(
         ))
 }
 
-/// The name `crownconnect-viewer --codec` takes.
+/// The name `crownlink-viewer --codec` takes.
 pub(crate) const fn viewer_codec(codec: StreamCodec) -> &'static str {
     match codec {
         StreamCodec::Hevc => "hevc",

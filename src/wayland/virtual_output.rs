@@ -92,7 +92,7 @@ impl VirtualOutput {
         }
         let name = name.to_owned();
         let worker =
-            WorkerHandle::spawn_blocking("crownconnect-virtual-output", move |globals, queue| {
+            WorkerHandle::spawn_blocking("crownlink-virtual-output", move |globals, queue| {
                 OutputState::create(globals, queue, name, mode, events)
             })?;
         Ok(Self { worker })
@@ -248,7 +248,7 @@ mod tests {
 
     #[test]
     fn names_follow_the_protocol_alphabet() {
-        assert!(is_valid_output_name("crownconnect-tab_1"));
+        assert!(is_valid_output_name("crownlink-tab_1"));
         assert!(!is_valid_output_name(""));
         assert!(!is_valid_output_name("has space"));
         assert!(!is_valid_output_name(&"x".repeat(33)));

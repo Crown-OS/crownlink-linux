@@ -1,25 +1,25 @@
 [package]
-name = "crownconnect-linux"
+name = "crownlink-linux"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.97"
 description = "CrownOS cross-device hub: pairing, sync and low-latency media with nearby devices"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/crown-os/crownconnect-linux"
+repository = "https://github.com/crown-os/crownlink-linux"
 
-# The `crownconnect` IPC schema only. Clients such as crownotify and
+# The `crownlink` IPC schema only. Clients such as crownotify and
 # crownsettings depend on this with `default-features = false`.
 [lib]
-name = "crownconnect_linux"
+name = "crownlink_linux"
 path = "src/lib.rs"
 
 [[bin]]
-name = "crownconnect-linux"
+name = "crownlink-linux"
 path = "src/main.rs"
 required-features = ["daemon"]
 
 [[bin]]
-name = "crownconnect-viewer"
+name = "crownlink-viewer"
 path = "src/bin/viewer.rs"
 required-features = ["media"]
 

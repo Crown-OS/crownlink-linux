@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 const FILESHARE_BINARY: &str = "fileshare-linux";
-const FILESHARE_OVERRIDE: &str = "CROWNCONNECT_FILESHARE";
+const FILESHARE_OVERRIDE: &str = "CROWNLINK_FILESHARE";
 /// Wi-Fi reaches every paired device on the LAN without a Bluetooth or USB setup step.
 const FILESHARE_MEDIUMS: &str = "wifi";
 
@@ -19,7 +19,7 @@ pub enum FfspSend {
     Unavailable,
 }
 
-/// `CROWNCONNECT_FILESHARE`, else `fileshare-linux` on `PATH`.
+/// `CROWNLINK_FILESHARE`, else `fileshare-linux` on `PATH`.
 fn fileshare_binary() -> Option<PathBuf> {
     if let Some(path) = std::env::var_os(FILESHARE_OVERRIDE) {
         return Some(PathBuf::from(path));
@@ -50,7 +50,7 @@ pub fn start_ffsp_send(path: &Path) -> std::io::Result<FfspSend> {
         .stderr(Stdio::null())
         .spawn()?;
     std::thread::Builder::new()
-        .name("crownconnect-ffsp-send".to_owned())
+        .name("crownlink-ffsp-send".to_owned())
         .spawn(move || match child.wait() {
             Ok(status) if status.success() => tracing::info!("ffsp transfer finished"),
             Ok(status) => tracing::warn!(%status, "ffsp transfer failed"),

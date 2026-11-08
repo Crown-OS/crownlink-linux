@@ -11,14 +11,14 @@ use std::path::Path;
 use std::process::Command;
 use std::time::{Duration, Instant};
 
-use crownconnect_linux::media::present::access_unit::write_unit;
-use crownconnect_linux::media::video::{
+use crownlink_linux::media::present::access_unit::write_unit;
+use crownlink_linux::media::video::{
     select_profile, BitDepth, CodecProfile, DownloadBuffer, EncoderBackend, EncoderConfig,
     HardwareCapabilities, Nv12Image, RateControl, VaapiDevice, VideoCodec, VideoDecoder,
     VideoEncoder,
 };
-use crownconnect_linux::util::annexb::nal_units;
-use crownconnect_linux::util::latency::LatencyWindow;
+use crownlink_linux::util::annexb::nal_units;
+use crownlink_linux::util::latency::LatencyWindow;
 
 const WIDTH: u32 = 1280;
 const HEIGHT: u32 = 720;

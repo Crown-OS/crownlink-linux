@@ -110,7 +110,7 @@ impl FeatureCoordinator {
                     self.input.add(peer, InputOwner::Mirror, injector);
                 }
                 (
-                    spec("crownconnect-mirror-out"),
+                    spec("crownlink-mirror-out"),
                     Box::new(move |context| mirror::share_screen(context, &*platform, &video)),
                 )
             }
@@ -126,7 +126,7 @@ impl FeatureCoordinator {
                 let input = takes_input.then(|| InputForwarder::new(self.outlet(), peer));
                 let peer_name = peer_name.to_owned();
                 (
-                    spec("crownconnect-mirror-in"),
+                    spec("crownlink-mirror-in"),
                     Box::new(move |context| {
                         let window = MirrorWindow {
                             params: &video,
@@ -141,20 +141,20 @@ impl FeatureCoordinator {
                 self.input
                     .add(peer, InputOwner::Monitor, Arc::clone(&injector));
                 (
-                    spec("crownconnect-monitor"),
+                    spec("crownlink-monitor"),
                     Box::new(move |context| {
                         monitor::extend_desktop(context, &*platform, &video, &mode, &injector)
                     }),
                 )
             }
             (FeatureRequest::Camera(_), MediaRole::Decoder, StreamParams::Video(video)) => (
-                spec("crownconnect-camera"),
+                spec("crownlink-camera"),
                 Box::new(move |context| camera::show_as_camera(context, &*platform, &video)),
             ),
             (FeatureRequest::Mic, MediaRole::Decoder, StreamParams::Audio(_)) => {
                 let peer_name = peer_name.to_owned();
                 (
-                    spec("crownconnect-mic-in"),
+                    spec("crownlink-mic-in"),
                     Box::new(move |context| {
                         let mut sink = platform.voice_sink(&peer_name)?;
                         mic::run_decoder(context, &mut *sink)
@@ -162,7 +162,7 @@ impl FeatureCoordinator {
                 )
             }
             (FeatureRequest::Mic, MediaRole::Encoder, StreamParams::Audio(_)) => (
-                spec("crownconnect-mic-out"),
+                spec("crownlink-mic-out"),
                 Box::new(move |context| {
                     let mut source = platform.voice_source()?;
                     mic::run_encoder(context, &mut *source)
@@ -323,7 +323,7 @@ impl MediaCoordinator for FeatureCoordinator {
         let platform = Arc::clone(&self.platform);
         self.spawn(
             PipelineSpec {
-                name: "crownconnect-unicursor",
+                name: "crownlink-unicursor",
                 peer,
                 feature: Feature::Unicursor,
                 stream: None,

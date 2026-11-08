@@ -13,7 +13,7 @@ const SAMPLE_BYTES: usize = size_of::<f32>();
 const SCRATCH_SAMPLES: usize = 4096;
 const TEN_MS_QUANTUM: &str = "480/48000";
 
-/// A virtual `Audio/Source` node, "CrownConnect Microphone (<device>)", that apps record from.
+/// A virtual `Audio/Source` node, "CrownLink Microphone (<device>)", that apps record from.
 /// It plays whatever the network thread decodes into the paired [`PcmReader`].
 #[derive(Debug)]
 pub struct VirtualMicrophone {
@@ -34,14 +34,14 @@ impl VirtualMicrophone {
         channels: VoiceChannels,
     ) -> Result<Self, MediaError> {
         let device_name = sanitized(device_name);
-        let description = format!("CrownConnect Microphone ({device_name})");
+        let description = format!("CrownLink Microphone ({device_name})");
         let node_name = node_name(&device_name);
         let format = voice_format_pod(channels)?;
         let stream_node_name = node_name.clone();
-        let thread = PipeWireThread::spawn("crownconnect-mic", move |core| {
+        let thread = PipeWireThread::spawn("crownlink-mic", move |core| {
             let stream = StreamRc::new(
                 core.clone(),
-                "crownconnect-mic",
+                "crownlink-mic",
                 properties! {
                     *pw::keys::MEDIA_TYPE => "Audio",
                     *pw::keys::MEDIA_CLASS => "Audio/Source",
@@ -93,7 +93,7 @@ fn node_name(device_name: &str) -> String {
             }
         })
         .collect();
-    format!("crownconnect_mic_{slug}")
+    format!("crownlink_mic_{slug}")
 }
 
 fn play_buffered(stream: &pw::stream::Stream, state: &mut MicrophoneState) {
@@ -138,6 +138,6 @@ mod tests {
 
     #[test]
     fn node_names_are_stable_ascii_slugs() {
-        assert_eq!(node_name("Pixel 9 Pro"), "crownconnect_mic_pixel_9_pro");
+        assert_eq!(node_name("Pixel 9 Pro"), "crownlink_mic_pixel_9_pro");
     }
 }

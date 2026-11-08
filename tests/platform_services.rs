@@ -11,8 +11,8 @@
 use std::future::Future;
 use std::time::Duration;
 
-use crownconnect_linux::state::publishers::{battery, hotspot, media, volume};
-use crownconnect_linux::state::{state_channel, LocalState, StateSink};
+use crownlink_linux::state::publishers::{battery, hotspot, media, volume};
+use crownlink_linux::state::{state_channel, LocalState, StateSink};
 use tokio::sync::mpsc;
 
 const FIRST_VALUE: Duration = Duration::from_secs(3);

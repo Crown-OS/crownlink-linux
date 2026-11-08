@@ -48,7 +48,7 @@ impl ClipboardSetter {
     ///
     /// Fails without a compositor offering ext-data-control and a seat.
     pub async fn connect() -> Result<Self, WaylandError> {
-        let worker = WorkerHandle::spawn("crownconnect-clipboard", SetterState::bind).await?;
+        let worker = WorkerHandle::spawn("crownlink-clipboard", SetterState::bind).await?;
         Ok(Self { worker })
     }
 
@@ -124,7 +124,7 @@ impl WorkerState for SetterState {
 
 fn send_bytes(fd: OwnedFd, bytes: Arc<[u8]>) {
     let spawned = std::thread::Builder::new()
-        .name("crownconnect-clipboard-send".into())
+        .name("crownlink-clipboard-send".into())
         .spawn(move || {
             let _ = std::fs::File::from(fd).write_all(&bytes);
         });

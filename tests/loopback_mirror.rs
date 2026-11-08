@@ -24,21 +24,21 @@ use std::sync::mpsc as std_mpsc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crownconnect_linux::features::{
+use crownlink_linux::features::{
     CaptureTarget, FeatureCoordinator, FeatureError, FrameSource, InputForwarder, MediaPlatform,
     MirrorWindow, ReceivedFrame, TestPatternSource, VideoSink, VoiceSink, VoiceSource,
 };
-use crownconnect_linux::ipc::proto::{
+use crownlink_linux::ipc::proto::{
     self, DeviceId, Direction, Feature, FeatureState, MirrorOptions, VideoLimits,
 };
-use crownconnect_linux::media::video::{
+use crownlink_linux::media::video::{
     CodecProfile, HardwareCapabilities, VaapiDevice, VideoCodec, VideoDecoder,
 };
-use crownconnect_linux::peer::EncodedFrame;
-use crownconnect_linux::util::latency::{LatencySummary, LatencyWindow};
-use crownconnect_linux::wayland::injector::Injector;
-use crownconnect_linux::wayland::input_capture::{CaptureEvent, InputCapture};
-use crownconnect_linux::wayland::EventOutlet;
+use crownlink_linux::peer::EncodedFrame;
+use crownlink_linux::util::latency::{LatencySummary, LatencyWindow};
+use crownlink_linux::wayland::injector::Injector;
+use crownlink_linux::wayland::input_capture::{CaptureEvent, InputCapture};
+use crownlink_linux::wayland::EventOutlet;
 use llts_signaling::message::{VideoCodec as StreamCodec, VideoParams};
 use support::{pair_by_qr, Daemon, Home, PATIENCE, REPLY};
 
@@ -513,8 +513,8 @@ impl MediaPlatform for PatternScreen {
     }
 }
 
-/// Opens a real `crownconnect-viewer` window for three seconds of mirrored test pattern; run
-/// on a desktop with `CROWNCONNECT_VIEWER=target/debug/crownconnect-viewer`.
+/// Opens a real `crownlink-viewer` window for three seconds of mirrored test pattern; run
+/// on a desktop with `CROWNLINK_VIEWER=target/debug/crownlink-viewer`.
 #[test]
 #[ignore = "opens a window on the running compositor"]
 fn a_mirrored_pattern_plays_in_the_viewer() {

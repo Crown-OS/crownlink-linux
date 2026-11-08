@@ -1,19 +1,19 @@
 mod app;
 
 use anyhow::{Context, Result};
-use crownconnect_linux::config::DaemonConfig;
+use crownlink_linux::config::DaemonConfig;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-const LOG_VARIABLE: &str = "CROWNCONNECT_LOG";
+const LOG_VARIABLE: &str = "CROWNLINK_LOG";
 const DEFAULT_LOG: &str = "info";
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     init_logging()?;
     let config = DaemonConfig::from_environment().context("cannot configure the daemon")?;
-    tracing::info!(version = env!("CARGO_PKG_VERSION"), name = %config.device_name, "crownconnect starting");
+    tracing::info!(version = env!("CARGO_PKG_VERSION"), name = %config.device_name, "crownlink starting");
     app::run(config).await
 }
 

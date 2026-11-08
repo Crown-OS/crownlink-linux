@@ -33,18 +33,18 @@ impl AudioCapture {
     ) -> Result<Self, MediaError> {
         let target = target.map(sanitized);
         let format = voice_format_pod(channels)?;
-        let thread = PipeWireThread::spawn("crownconnect-capture", move |core| {
+        let thread = PipeWireThread::spawn("crownlink-capture", move |core| {
             let mut props = properties! {
                 *pw::keys::MEDIA_TYPE => "Audio",
                 *pw::keys::MEDIA_CATEGORY => "Capture",
                 *pw::keys::MEDIA_ROLE => "Communication",
-                *pw::keys::NODE_NAME => "crownconnect_capture",
+                *pw::keys::NODE_NAME => "crownlink_capture",
                 *pw::keys::NODE_LATENCY => TEN_MS_QUANTUM,
             };
             if let Some(target) = target {
                 props.insert(*pw::keys::TARGET_OBJECT, target);
             }
-            let stream = StreamRc::new(core.clone(), "crownconnect-capture", props)?;
+            let stream = StreamRc::new(core.clone(), "crownlink-capture", props)?;
             let state = CaptureState {
                 writer,
                 scratch: vec![0.0; SCRATCH_SAMPLES],

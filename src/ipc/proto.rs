@@ -1,4 +1,4 @@
-//! The wire contract of the `crownconnect` service.
+//! The wire contract of the `crownlink` service.
 //!
 //! Lives in the library target, outside the `daemon` feature, so every client
 //! — crownotify, crownsettings, any other CrownOS app that talks to a paired
@@ -11,7 +11,7 @@
 pub use super::types::*;
 
 crownos_ipc::protocol! {
-    pub mod crownconnect: "crownconnect" {
+    pub mod crownlink: "crownlink" {
         /// Every device this computer has paired with or can currently see.
         fn devices() -> Vec<DeviceInfo>;
         /// Open a pairing window and return the QR invitation for it. Devices
@@ -100,4 +100,4 @@ crownos_ipc::protocol! {
     }
 }
 
-pub use crownconnect::*;
+pub use crownlink::*;

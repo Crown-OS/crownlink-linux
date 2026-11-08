@@ -6,10 +6,10 @@ use std::path::PathBuf;
 use crate::ipc::proto::{Feature, FeatureSet};
 use crate::util::xdg;
 
-/// The UDP port llts listens on unless `CROWNCONNECT_LLTS_PORT` overrides it.
+/// The UDP port llts listens on unless `CROWNLINK_LLTS_PORT` overrides it.
 pub const DEFAULT_LLTS_PORT: u16 = 47_470;
 
-const APP_DIRECTORY: &str = "crownos/crownconnect";
+const APP_DIRECTORY: &str = "crownos/crownlink";
 const FFSP_LINKS: &str = "crownos/fileshare/links";
 const FALLBACK_DEVICE_NAME: &str = "CrownOS computer";
 
@@ -20,11 +20,11 @@ pub const DEFAULT_LLTS_BIND: IpAddr = IpAddr::V6(Ipv6Addr::UNSPECIFIED);
 pub enum ConfigError {
     #[error("neither XDG_DATA_HOME nor HOME is an absolute path")]
     NoDataDirectory,
-    #[error("CROWNCONNECT_LLTS_PORT is not a port number: {0}")]
+    #[error("CROWNLINK_LLTS_PORT is not a port number: {0}")]
     InvalidPort(String),
-    #[error("CROWNCONNECT_LLTS_BIND is not an IP address: {0}")]
+    #[error("CROWNLINK_LLTS_BIND is not an IP address: {0}")]
     InvalidBind(String),
-    #[error("CROWNCONNECT_STATIC_PEERS holds something other than socket addresses: {0}")]
+    #[error("CROWNLINK_STATIC_PEERS holds something other than socket addresses: {0}")]
     InvalidStaticPeer(String),
 }
 
@@ -53,7 +53,7 @@ pub struct DaemonConfig {
     pub device_name: String,
     /// What a device may use right after pairing, until the user changes it.
     pub default_features: FeatureSet,
-    /// The v4l2loopback node a peer's camera appears on (`CROWNCONNECT_CAMERA_DEVICE`); the
+    /// The v4l2loopback node a peer's camera appears on (`CROWNLINK_CAMERA_DEVICE`); the
     /// first loopback node there is when unset.
     pub camera_device: Option<PathBuf>,
 }
@@ -70,14 +70,14 @@ impl DaemonConfig {
             paths: DaemonPaths::in_directories(
                 data_directory,
                 &data_home,
-                std::env::var_os("CROWNCONNECT_IPC_DIR").map(PathBuf::from),
+                std::env::var_os("CROWNLINK_IPC_DIR").map(PathBuf::from),
             ),
-            llts_port: llts_port(std::env::var("CROWNCONNECT_LLTS_PORT").ok().as_deref())?,
-            llts_bind: llts_bind(std::env::var("CROWNCONNECT_LLTS_BIND").ok().as_deref())?,
-            static_peers: static_peers(std::env::var("CROWNCONNECT_STATIC_PEERS").ok().as_deref())?,
+            llts_port: llts_port(std::env::var("CROWNLINK_LLTS_PORT").ok().as_deref())?,
+            llts_bind: llts_bind(std::env::var("CROWNLINK_LLTS_BIND").ok().as_deref())?,
+            static_peers: static_peers(std::env::var("CROWNLINK_STATIC_PEERS").ok().as_deref())?,
             device_name: device_name(),
             default_features: default_features(),
-            camera_device: std::env::var_os("CROWNCONNECT_CAMERA_DEVICE").map(PathBuf::from),
+            camera_device: std::env::var_os("CROWNLINK_CAMERA_DEVICE").map(PathBuf::from),
         })
     }
 }

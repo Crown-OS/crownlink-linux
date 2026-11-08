@@ -16,7 +16,7 @@ use super::source::{frame_rate, run_encoder};
 use super::FeatureError;
 use crate::wayland::virtual_output::VirtualOutputMode;
 
-const OUTPUT_NAME_PREFIX: &str = "crownconnect-";
+const OUTPUT_NAME_PREFIX: &str = "crownlink-";
 const OUTPUT_NAME_ID_BYTES: usize = 4;
 
 /// A stable output name per peer, within the protocol's alphabet.
@@ -74,7 +74,7 @@ mod tests {
     #[test]
     fn output_names_are_valid_and_per_peer() {
         let name = output_name(&DeviceId([0xab; 32]));
-        assert_eq!(name, "crownconnect-abababab");
+        assert_eq!(name, "crownlink-abababab");
         assert!(is_valid_output_name(&name));
     }
 }

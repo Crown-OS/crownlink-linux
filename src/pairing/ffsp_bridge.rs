@@ -253,7 +253,7 @@ mod tests {
 
     fn scratch(name: &str) -> PathBuf {
         std::env::temp_dir()
-            .join(format!("crownconnect-ffsp-{}-{name}", std::process::id()))
+            .join(format!("crownlink-ffsp-{}-{name}", std::process::id()))
             .join("links")
     }
 

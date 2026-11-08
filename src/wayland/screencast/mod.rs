@@ -149,7 +149,7 @@ impl Screencast {
         events: EventOutlet<ScreencastEvent>,
     ) -> Result<Self, WaylandError> {
         let worker =
-            WorkerHandle::spawn_blocking("crownconnect-screencast", move |globals, queue| {
+            WorkerHandle::spawn_blocking("crownlink-screencast", move |globals, queue| {
                 ScreencastState::bind(globals, queue, options, events)
             })?;
         worker.send(SessionCommand::Begin)?;

@@ -1,4 +1,4 @@
-//! A peer's screen in a `crownconnect-viewer` window: access units go down its stdin, and the
+//! A peer's screen in a `crownlink-viewer` window: access units go down its stdin, and the
 //! pointer, keyboard and touch input it sees comes back on its stdout for the peer.
 
 use std::io::{BufReader, ErrorKind, Write};
@@ -16,10 +16,10 @@ use super::FeatureError;
 use crate::media::present::access_unit::UnitHeader;
 use crate::media::present::input::{read_message, InputEvent};
 
-const VIEWER_BINARY: &str = "crownconnect-viewer";
-const VIEWER_OVERRIDE: &str = "CROWNCONNECT_VIEWER";
+const VIEWER_BINARY: &str = "crownlink-viewer";
+const VIEWER_OVERRIDE: &str = "CROWNLINK_VIEWER";
 
-/// `CROWNCONNECT_VIEWER`, else the viewer installed next to the daemon, else the one on `PATH`.
+/// `CROWNLINK_VIEWER`, else the viewer installed next to the daemon, else the one on `PATH`.
 fn viewer_binary() -> PathBuf {
     if let Some(path) = std::env::var_os(VIEWER_OVERRIDE) {
         return PathBuf::from(path);
@@ -58,7 +58,7 @@ impl ViewerSink {
         let input = match (input, child.stdout.take()) {
             (Some(forwarder), Some(stdout)) => Some(
                 std::thread::Builder::new()
-                    .name("crownconnect-viewer-input".to_owned())
+                    .name("crownlink-viewer-input".to_owned())
                     .spawn(move || forward_input(stdout, &forwarder))?,
             ),
             _ => None,

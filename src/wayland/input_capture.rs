@@ -76,10 +76,9 @@ impl InputCapture {
     ///
     /// Fails without a compositor offering crownos-input-v1 and a seat.
     pub fn connect(events: EventOutlet<CaptureEvent>) -> Result<Self, WaylandError> {
-        let worker =
-            WorkerHandle::spawn_blocking("crownconnect-capture", move |globals, queue| {
-                CaptureState::bind(globals, queue, events)
-            })?;
+        let worker = WorkerHandle::spawn_blocking("crownlink-capture", move |globals, queue| {
+            CaptureState::bind(globals, queue, events)
+        })?;
         Ok(Self { worker })
     }
 

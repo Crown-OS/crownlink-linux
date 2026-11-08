@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn choices_survive_a_reopen_and_forgetting_removes_them() -> Result<(), FeatureStoreError> {
         let path = std::env::temp_dir()
-            .join(format!("crownconnect-features-{}", std::process::id()))
+            .join(format!("crownlink-features-{}", std::process::id()))
             .join("features.pc");
         let phone = DeviceId([4; 32]);
         let choice = FeatureSet::EMPTY.with(Feature::Battery);

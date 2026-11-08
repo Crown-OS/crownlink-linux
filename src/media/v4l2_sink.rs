@@ -209,7 +209,7 @@ mod tests {
 
     #[test]
     fn opening_a_missing_device_fails_cleanly() {
-        let missing = Path::new("/dev/crownconnect-no-such-video-device");
+        let missing = Path::new("/dev/crownlink-no-such-video-device");
         assert!(V4l2LoopbackSink::open(missing, 640, 480, SinkPixelFormat::Yuyv).is_err());
     }
 }

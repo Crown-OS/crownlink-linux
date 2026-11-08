@@ -78,10 +78,7 @@ mod tests {
     use super::*;
 
     fn scratch(name: &str) -> PathBuf {
-        std::env::temp_dir().join(format!(
-            "crownconnect-identity-{}-{name}",
-            std::process::id()
-        ))
+        std::env::temp_dir().join(format!("crownlink-identity-{}-{name}", std::process::id()))
     }
 
     #[test]

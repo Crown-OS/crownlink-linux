@@ -10,12 +10,12 @@ use std::sync::mpsc as std_mpsc;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use crownconnect_linux::ipc::proto::{
+use crownlink_linux::ipc::proto::{
     self, Battery, DeviceClass, DeviceId, DeviceInfo, Direction, Feature, FeatureSet, LinkKind,
     MirrorOptions, PairingOffer, Topic, VideoLimits,
 };
-use crownconnect_linux::ipc::server::{DaemonEvent, IpcServer, OwnedUpdate};
-use crownconnect_linux::peer::{PeerCommand, PeerNotice, PeerRequest};
+use crownlink_linux::ipc::server::{DaemonEvent, IpcServer, OwnedUpdate};
+use crownlink_linux::peer::{PeerCommand, PeerNotice, PeerRequest};
 use crownos_ipc::{Error, RemoteError};
 use llts_signaling::message::Media;
 use llts_signaling::state::{Battery as BatteryState, Incarnation, TopicPayload, Version};
@@ -41,7 +41,7 @@ fn phone() -> DeviceInfo {
 }
 
 fn socket_directory(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("crownconnect-server-{}-{name}", std::process::id()))
+    std::env::temp_dir().join(format!("crownlink-server-{}-{name}", std::process::id()))
 }
 
 /// Answers pairing, refuses streaming, and reports every notice it receives.
@@ -52,7 +52,7 @@ async fn fake_runtime(
     while let Some(command) = commands.recv().await {
         match command {
             PeerCommand::Request(PeerRequest::PairingBegin(reply)) => reply.reply(PairingOffer {
-                qr: "crownconnect:test".into(),
+                qr: "crownlink:test".into(),
                 expires_unix_ms: 5,
             }),
             PeerCommand::Request(request) => request.reject(NO_SESSION),
@@ -223,7 +223,7 @@ fn the_server_caches_runtime_events_and_routes_requests_to_the_runtime() {
     let pending = client.pairing_begin().expect("pairing_begin");
     assert_eq!(
         client.wait(pending, TIMEOUT).expect("offer").qr,
-        "crownconnect:test"
+        "crownlink:test"
     );
     let pending = client.start_mirror(PHONE, MIRROR).expect("start_mirror");
     assert_eq!(

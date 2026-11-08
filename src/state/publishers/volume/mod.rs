@@ -35,7 +35,7 @@ pub async fn run(
     let (graph_commands, graph_receiver) = pw::channel::channel();
     let (ready_sender, ready) = std_mpsc::sync_channel(1);
     let thread = std::thread::Builder::new()
-        .name("crownconnect-volume".into())
+        .name("crownlink-volume".into())
         .spawn(move || {
             if let Err(error) = graph::run(sink, graph_receiver, &ready_sender) {
                 let _ = ready_sender.send(Err(error));

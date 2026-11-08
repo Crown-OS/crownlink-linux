@@ -4,7 +4,7 @@
     reason = "a test that fails a precondition should fail loudly"
 )]
 
-use crownconnect_linux::pairing::ffsp_bridge::{
+use crownlink_linux::pairing::ffsp_bridge::{
     derive_ffsp_link_secret, ffsp_device_id, FfspLink, FfspLinkStore,
 };
 use ffsp_linux::FileLinkStore;
@@ -14,10 +14,8 @@ use llts_signaling::device::DeviceClass as SignalingDeviceClass;
 
 #[test]
 fn ffsp_reads_the_links_the_bridge_writes() {
-    let directory = std::env::temp_dir().join(format!(
-        "crownconnect-ffsp-roundtrip-{}",
-        std::process::id()
-    ));
+    let directory =
+        std::env::temp_dir().join(format!("crownlink-ffsp-roundtrip-{}", std::process::id()));
     let path = directory.join("links");
     let bridge = FfspLinkStore::new(&path);
     let phone_key = [0x51; 32];
