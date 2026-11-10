@@ -8,6 +8,7 @@ use llts_signaling::state::{Clipboard, ClipboardContent, Published};
 use tokio::sync::mpsc;
 
 use super::event_loop::PeerLoop;
+use crate::peer::convert::signaling_audio_routes;
 use crate::state::{ClipboardSnapshot, LocalState, MediaSnapshot};
 
 fn deliver<T>(service: &mpsc::Sender<T>, value: T, what: &'static str) {
@@ -22,8 +23,10 @@ fn deliver<T>(service: &mpsc::Sender<T>, value: T, what: &'static str) {
 impl PeerLoop {
     pub(super) fn publish(&mut self, mut state: LocalState) {
         let now = self.clock.now();
-        if let LocalState::Clipboard(clipboard) = &mut state {
-            clipboard.stamp = self.node.clipboard_stamp(now);
+        match &mut state {
+            LocalState::Clipboard(clipboard) => clipboard.stamp = self.node.clipboard_stamp(now),
+            LocalState::Focus(focus) => focus.stamp = self.node.stamp(now),
+            _ => {}
         }
         let outcome: Result<Published, NodeError> = match &state {
             LocalState::Battery(battery) => self.node.publish(now, battery),
@@ -36,6 +39,10 @@ impl PeerLoop {
                 .map_err(NodeError::from)
                 .and_then(|payload| self.node.publish(now, &payload)),
             LocalState::Hotspot(hotspot) => self.node.publish(now, &hotspot.payload()),
+            LocalState::Focus(focus) => self.node.publish(now, &focus.payload()),
+            LocalState::AudioRoutes(routes) => {
+                self.node.publish(now, &signaling_audio_routes(routes))
+            }
         };
         match outcome {
             Ok(Published::Changed(version)) => {

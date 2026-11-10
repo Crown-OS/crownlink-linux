@@ -117,6 +117,7 @@ impl PeerLoop {
                 }
             }
             AppEvent::RemoteCommand { peer, command } => self.on_remote_command(peer, command),
+            AppEvent::Application { peer, message } => self.on_application(peer, &message),
             AppEvent::Error(error) => {
                 tracing::warn!(error = %error_chain(&error), "llts node");
                 self.failures.push(error);

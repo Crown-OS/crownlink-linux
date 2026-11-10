@@ -10,8 +10,12 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use crownlink_linux::ipc::proto::{
-    self, Battery, CameraOptions, DeviceClass, DeviceId, DeviceInfo, Edge, Feature, FeatureSet,
-    FeatureState, LinkKind, MirrorOptions, MonitorOptions, PairingOffer, Topic,
+    self, AudioOptions, AudioRoutes, Battery, BlobFile, CallLogPage, CameraOptions, CaptureRequest,
+    CaptureStatus, CastOptions, Collections, ContactPage, Conversation, ConversationPage,
+    DeviceClass, DeviceId, DeviceInfo, DeviceLocation, Edge, Feature, FeatureSet, FeatureState,
+    FocusInfo, FocusMode, HeadsetOwner, LinkKind, LiveActivity, MessageDraft, MessagePage,
+    MirrorOptions, MonitorOptions, PageRequest, PairingOffer, Participant, Topic, Transfer,
+    VoicemailPage,
 };
 use crownos_ipc::{blocking, Error, MethodMsg, RemoteError, ServiceBuilder};
 
@@ -24,6 +28,8 @@ struct FakeHub {
     features: FeatureSet,
     last_seek: Option<u8>,
     picked_up: Vec<String>,
+    focus: Option<FocusInfo>,
+    drafts: Vec<MessageDraft>,
 }
 
 fn phone() -> DeviceInfo {
@@ -166,6 +172,180 @@ impl proto::Handler for FakeHub {
             Ok(())
         }
     }
+
+    fn conversations(
+        &mut self,
+        id: DeviceId,
+        page: PageRequest,
+    ) -> Result<ConversationPage, RemoteError> {
+        known(id)?;
+        Ok(ConversationPage {
+            items: vec![Conversation {
+                thread_id: 4,
+                participants: vec![Participant {
+                    address: "+15550100".into(),
+                    name: None,
+                    contact_key: None,
+                }],
+                participant_count: 1,
+                snippet: "see you".into(),
+                last_unix_ms: 9,
+                unread: u32::from(page.limit),
+                has_attachments: false,
+            }],
+            next: page.cursor.map(|cursor| format!("{cursor}+")),
+        })
+    }
+
+    fn messages(
+        &mut self,
+        id: DeviceId,
+        thread_id: u64,
+        _page: PageRequest,
+    ) -> Result<MessagePage, RemoteError> {
+        known(id).map(|()| MessagePage {
+            thread_id,
+            items: Vec::new(),
+            next: None,
+        })
+    }
+
+    fn send_message(&mut self, id: DeviceId, draft: MessageDraft) -> Result<String, RemoteError> {
+        known(id)?;
+        self.drafts.push(draft);
+        Ok(format!("sms/{}", self.drafts.len()))
+    }
+
+    fn mark_read(&mut self, id: DeviceId, _thread_id: u64) -> Result<(), RemoteError> {
+        known(id)
+    }
+
+    fn fetch_blob(
+        &mut self,
+        id: DeviceId,
+        _feature: Feature,
+        _key: String,
+    ) -> Result<BlobFile, RemoteError> {
+        known(id)?;
+        Err(RemoteError::handler("no such blob"))
+    }
+
+    fn call_log(&mut self, id: DeviceId, _page: PageRequest) -> Result<CallLogPage, RemoteError> {
+        known(id).map(|()| CallLogPage::default())
+    }
+
+    fn voicemails(
+        &mut self,
+        id: DeviceId,
+        _page: PageRequest,
+    ) -> Result<VoicemailPage, RemoteError> {
+        known(id).map(|()| VoicemailPage::default())
+    }
+
+    fn contacts(&mut self, id: DeviceId, _page: PageRequest) -> Result<ContactPage, RemoteError> {
+        known(id).map(|()| ContactPage::default())
+    }
+
+    fn collections(&mut self, id: DeviceId) -> Result<Collections, RemoteError> {
+        known(id).map(|()| Collections::default())
+    }
+
+    fn capture(&mut self, id: DeviceId, _request: CaptureRequest) -> Result<u32, RemoteError> {
+        known(id).map(|()| 1)
+    }
+
+    fn cancel_capture(&mut self, _capture: u32) {}
+
+    fn capture_status(&mut self, _capture: u32) -> Result<CaptureStatus, RemoteError> {
+        Ok(CaptureStatus::Pending)
+    }
+
+    fn transfers(&mut self) -> Result<Vec<Transfer>, RemoteError> {
+        Ok(Vec::new())
+    }
+
+    fn start_cast(&mut self, id: DeviceId, _options: CastOptions) -> Result<(), RemoteError> {
+        known(id)
+    }
+
+    fn start_audio(&mut self, id: DeviceId, _options: AudioOptions) -> Result<(), RemoteError> {
+        known(id)
+    }
+
+    fn move_headset(
+        &mut self,
+        id: DeviceId,
+        _address: String,
+        _to: HeadsetOwner,
+    ) -> Result<(), RemoteError> {
+        known(id)
+    }
+
+    fn audio_routes(&mut self, id: DeviceId) -> Result<Option<AudioRoutes>, RemoteError> {
+        known(id).map(|()| None)
+    }
+
+    fn local_audio_routes(&mut self) -> Result<AudioRoutes, RemoteError> {
+        Ok(AudioRoutes::default())
+    }
+
+    fn set_focus(&mut self, focus: FocusInfo) -> Result<(), RemoteError> {
+        self.focus = Some(focus);
+        Ok(())
+    }
+
+    fn focus(&mut self, id: DeviceId) -> Result<Option<FocusInfo>, RemoteError> {
+        known(id).map(|()| self.focus.clone())
+    }
+
+    fn live_activities(&mut self, id: DeviceId) -> Result<Vec<LiveActivity>, RemoteError> {
+        known(id).map(|()| Vec::new())
+    }
+
+    fn live_activity_action(
+        &mut self,
+        id: DeviceId,
+        _activity_id: String,
+        _action_id: String,
+    ) -> Result<(), RemoteError> {
+        known(id)
+    }
+
+    fn share_wifi(&mut self, id: DeviceId, _ssid: String) -> Result<(), RemoteError> {
+        known(id)
+    }
+
+    fn request_wifi(&mut self, id: DeviceId, _ssid: String) -> Result<(), RemoteError> {
+        known(id)
+    }
+
+    fn ring_device(&mut self, id: DeviceId) -> Result<(), RemoteError> {
+        known(id)
+    }
+
+    fn stop_ringing(&mut self, id: DeviceId) -> Result<(), RemoteError> {
+        known(id)
+    }
+
+    fn locate(&mut self, id: DeviceId) -> Result<DeviceLocation, RemoteError> {
+        known(id).map(|()| DeviceLocation {
+            latitude: 51.5,
+            longitude: -0.12,
+            accuracy_m: 12,
+            altitude_m: None,
+            fix_unix_ms: 3,
+        })
+    }
+
+    fn local_ring(&mut self) -> Result<Option<DeviceId>, RemoteError> {
+        Ok(None)
+    }
+
+    fn stop_local_ring(&mut self) {}
+
+    fn open_on_device(&mut self, id: DeviceId, _uri: String) -> Result<(), RemoteError> {
+        known(id)
+    }
 }
 
 fn socket_directory() -> PathBuf {
@@ -256,6 +436,43 @@ fn a_client_drives_the_hub_through_the_frozen_schema() {
         other => panic!("expected a handler error, got {other:?}"),
     }
 
+    let pending = client
+        .conversations(
+            PHONE,
+            PageRequest {
+                cursor: Some("c1".into()),
+                limit: 25,
+            },
+        )
+        .expect("conversations");
+    let page = client.wait(pending, TIMEOUT).expect("conversations reply");
+    assert_eq!(page.next.as_deref(), Some("c1+"));
+    assert_eq!(page.items.first().map(|item| item.unread), Some(25));
+
+    let draft = MessageDraft {
+        recipients: vec!["+15550100".into()],
+        text: "hello".into(),
+        ..MessageDraft::default()
+    };
+    let pending = client.send_message(PHONE, draft.clone()).expect("send");
+    assert_eq!(client.wait(pending, TIMEOUT).expect("send reply"), "sms/1");
+
+    let focus = FocusInfo {
+        mode: FocusMode::Named("Work".into()),
+        until_unix_ms: Some(7),
+    };
+    let pending = client.set_focus(focus.clone()).expect("set_focus");
+    client.wait(pending, TIMEOUT).expect("set_focus reply");
+    let pending = client.focus(PHONE).expect("focus");
+    assert_eq!(
+        client.wait(pending, TIMEOUT).expect("focus reply"),
+        Some(focus)
+    );
+
+    let pending = client.locate(PHONE).expect("locate");
+    let location = client.wait(pending, TIMEOUT).expect("locate reply");
+    assert_eq!(location.accuracy_m, 12);
+
     let pending = client.pickup_call("call-1".into()).expect("pickup");
     client.wait(pending, TIMEOUT).expect("pickup reply");
     client.media_seek(42).expect("seek");
@@ -264,6 +481,7 @@ fn a_client_drives_the_hub_through_the_frozen_schema() {
     let hub = hub.join().expect("hub thread");
     assert_eq!(hub.last_seek, Some(42));
     assert_eq!(hub.picked_up, ["call-1"]);
+    assert_eq!(hub.drafts, [draft]);
 }
 
 #[test]
@@ -296,6 +514,37 @@ fn every_selector_in_the_schema_is_distinct() {
         <proto::send_reply as MethodMsg>::SELECTOR,
         <proto::state as MethodMsg>::SELECTOR,
         <proto::set_hotspot as MethodMsg>::SELECTOR,
+        <proto::pair_with_qr as MethodMsg>::SELECTOR,
+        <proto::conversations as MethodMsg>::SELECTOR,
+        <proto::messages as MethodMsg>::SELECTOR,
+        <proto::send_message as MethodMsg>::SELECTOR,
+        <proto::mark_read as MethodMsg>::SELECTOR,
+        <proto::fetch_blob as MethodMsg>::SELECTOR,
+        <proto::call_log as MethodMsg>::SELECTOR,
+        <proto::voicemails as MethodMsg>::SELECTOR,
+        <proto::contacts as MethodMsg>::SELECTOR,
+        <proto::collections as MethodMsg>::SELECTOR,
+        <proto::capture as MethodMsg>::SELECTOR,
+        <proto::cancel_capture as MethodMsg>::SELECTOR,
+        <proto::capture_status as MethodMsg>::SELECTOR,
+        <proto::transfers as MethodMsg>::SELECTOR,
+        <proto::start_cast as MethodMsg>::SELECTOR,
+        <proto::start_audio as MethodMsg>::SELECTOR,
+        <proto::move_headset as MethodMsg>::SELECTOR,
+        <proto::audio_routes as MethodMsg>::SELECTOR,
+        <proto::local_audio_routes as MethodMsg>::SELECTOR,
+        <proto::set_focus as MethodMsg>::SELECTOR,
+        <proto::focus as MethodMsg>::SELECTOR,
+        <proto::live_activities as MethodMsg>::SELECTOR,
+        <proto::live_activity_action as MethodMsg>::SELECTOR,
+        <proto::share_wifi as MethodMsg>::SELECTOR,
+        <proto::request_wifi as MethodMsg>::SELECTOR,
+        <proto::ring_device as MethodMsg>::SELECTOR,
+        <proto::stop_ringing as MethodMsg>::SELECTOR,
+        <proto::locate as MethodMsg>::SELECTOR,
+        <proto::local_ring as MethodMsg>::SELECTOR,
+        <proto::stop_local_ring as MethodMsg>::SELECTOR,
+        <proto::open_on_device as MethodMsg>::SELECTOR,
         <proto::DeviceConnected as EventMsg>::SELECTOR,
         <proto::DevicesChanged as EventMsg>::SELECTOR,
         <proto::PairingRequest as EventMsg>::SELECTOR,
@@ -306,6 +555,15 @@ fn every_selector_in_the_schema_is_distinct() {
         <proto::HotspotChanged as EventMsg>::SELECTOR,
         <proto::FeatureChanged as EventMsg>::SELECTOR,
         <proto::FeatureFailed as EventMsg>::SELECTOR,
+        <proto::MessageChanged as EventMsg>::SELECTOR,
+        <proto::CollectionsChanged as EventMsg>::SELECTOR,
+        <proto::CaptureFinished as EventMsg>::SELECTOR,
+        <proto::TransferChanged as EventMsg>::SELECTOR,
+        <proto::AudioRoutesChanged as EventMsg>::SELECTOR,
+        <proto::FocusChanged as EventMsg>::SELECTOR,
+        <proto::LiveActivitiesChanged as EventMsg>::SELECTOR,
+        <proto::WifiReceived as EventMsg>::SELECTOR,
+        <proto::LocalRingChanged as EventMsg>::SELECTOR,
     ];
     let declared = selectors.len();
     selectors.sort_unstable();

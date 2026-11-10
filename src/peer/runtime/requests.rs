@@ -14,10 +14,11 @@ use crate::features::files::{start_ffsp_send, FfspSend};
 use crate::ipc::proto::FeatureSet;
 use crate::ipc::server::Responder;
 use crate::peer::convert::{
-    signaling_feature, signaling_id, start_camera, start_mirror, start_monitor,
+    signaling_feature, signaling_id, start_audio, start_camera, start_cast, start_mirror,
+    start_monitor,
 };
 use crate::peer::link_monitor::dialable;
-use crate::peer::{PeerCommand, PeerNotice, PeerRequest};
+use crate::peer::{unavailable_reason, PeerCommand, PeerNotice, PeerRequest};
 use crate::util::error_chain::error_chain;
 use crate::util::random::random_u32;
 
@@ -156,7 +157,44 @@ impl PeerLoop {
                 );
                 Self::respond(reply, outcome);
             }
+            PeerRequest::StartCast { id, options, reply } => self.start(
+                signaling_id(id),
+                FeatureRequest::Cast(start_cast(options)),
+                reply,
+            ),
+            PeerRequest::StartAudio { id, options, reply } => self.start(
+                signaling_id(id),
+                FeatureRequest::Audio(start_audio(options)),
+                reply,
+            ),
+            request @ (PeerRequest::Conversations { .. }
+            | PeerRequest::Messages { .. }
+            | PeerRequest::SendMessage { .. }
+            | PeerRequest::MarkRead { .. }
+            | PeerRequest::FetchBlob { .. }
+            | PeerRequest::CallLog { .. }
+            | PeerRequest::Voicemails { .. }
+            | PeerRequest::Contacts { .. }
+            | PeerRequest::Capture { .. }
+            | PeerRequest::MoveHeadset { .. }
+            | PeerRequest::SetFocus { .. }
+            | PeerRequest::LiveActivityAction { .. }
+            | PeerRequest::ShareWifi { .. }
+            | PeerRequest::RequestWifi { .. }
+            | PeerRequest::RingDevice { .. }
+            | PeerRequest::StopRinging { .. }
+            | PeerRequest::Locate { .. }
+            | PeerRequest::OpenOnDevice { .. }) => Self::refuse_unimplemented(request),
         }
+    }
+
+    /// Answers a request for a feature this build does not run with a reason the user can read.
+    fn refuse_unimplemented(request: PeerRequest) {
+        let reason = request.continuity_feature().map_or_else(
+            || "this build of crownlink cannot do that".to_owned(),
+            unavailable_reason,
+        );
+        request.reject(&reason);
     }
 
     /// Starts the ffsp sender when one is installed and offers the file over llts.
@@ -196,6 +234,10 @@ impl PeerLoop {
             PeerNotice::FeaturesChanged { id, features } => {
                 self.set_features(signaling_id(id), features)
             }
+            PeerNotice::CancelCapture(capture) => {
+                Err(format!("there is no capture {capture} to cancel"))
+            }
+            PeerNotice::StopLocalRing => Err("no device is ringing this computer".to_owned()),
         };
         if let Err(reason) = outcome {
             tracing::warn!(reason, "cannot act on a notification");

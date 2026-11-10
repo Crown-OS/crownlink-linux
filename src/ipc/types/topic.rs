@@ -9,4 +9,7 @@ pub enum Topic {
     Clipboard,
     Hotspot,
     Calls,
+    Focus,
+    LiveActivities,
+    AudioRoutes,
 }

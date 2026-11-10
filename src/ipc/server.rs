@@ -6,6 +6,7 @@ mod daemon_state;
 mod driver;
 mod outgoing;
 mod responder;
+mod routes;
 
 use std::path::Path;
 
@@ -179,183 +180,6 @@ impl Router {
         }
     }
 
-    fn request(
-        &mut self,
-        server: &mut Server,
-        peer: PeerId,
-        message: &Message,
-    ) -> Result<(), Malformed> {
-        use proto::*;
-        let payload = message.payload.as_slice();
-        let req_id = message.req_id;
-        let reply = |server: &mut Server, result: Result<Vec<u8>, RemoteError>| {
-            send_deferred(
-                server,
-                DeferredReply {
-                    peer,
-                    req_id,
-                    outcome: result,
-                },
-            );
-        };
-        match message.selector {
-            <devices as MethodMsg>::SELECTOR => {
-                args::<devices>(payload)?;
-                reply(server, encode(&self.state.devices()));
-            }
-            <features as MethodMsg>::SELECTOR => {
-                let call = args::<features>(payload)?;
-                reply(
-                    server,
-                    self.state.features(call.id).and_then(|set| encode(&set)),
-                );
-            }
-            <state as MethodMsg>::SELECTOR => {
-                let call = args::<state>(payload)?;
-                reply(
-                    server,
-                    self.state
-                        .state(call.id, call.topic)
-                        .and_then(|doc| encode(&doc)),
-                );
-            }
-            <set_feature as MethodMsg>::SELECTOR => {
-                let call = args::<set_feature>(payload)?;
-                match self.state.set_feature(call.id, call.feature, call.enabled) {
-                    Ok((features, event)) => {
-                        reply(server, encode(&()));
-                        let _ = event.emit(server);
-                        self.notify(PeerNotice::FeaturesChanged {
-                            id: call.id,
-                            features,
-                        });
-                    }
-                    Err(error) => reply(server, Err(error)),
-                }
-            }
-            <pairing_begin as MethodMsg>::SELECTOR => {
-                args::<pairing_begin>(payload)?;
-                self.forward(PeerRequest::PairingBegin(self.responder(peer, req_id)));
-            }
-            <pairing_confirm as MethodMsg>::SELECTOR => {
-                let call = args::<pairing_confirm>(payload)?;
-                self.forward(PeerRequest::PairingConfirm {
-                    id: call.id,
-                    accept: call.accept,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <forget as MethodMsg>::SELECTOR => {
-                let call = args::<forget>(payload)?;
-                self.forward(PeerRequest::Forget {
-                    id: call.id,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <send_file as MethodMsg>::SELECTOR => {
-                let call = args::<send_file>(payload)?;
-                self.forward(PeerRequest::SendFile {
-                    id: call.id,
-                    path: call.path,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <start_mirror as MethodMsg>::SELECTOR => {
-                let call = args::<start_mirror>(payload)?;
-                self.forward(PeerRequest::StartMirror {
-                    id: call.id,
-                    options: call.options,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <start_camera as MethodMsg>::SELECTOR => {
-                let call = args::<start_camera>(payload)?;
-                self.forward(PeerRequest::StartCamera {
-                    id: call.id,
-                    options: call.options,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <start_mic as MethodMsg>::SELECTOR => {
-                let call = args::<start_mic>(payload)?;
-                self.forward(PeerRequest::StartMic {
-                    id: call.id,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <start_monitor as MethodMsg>::SELECTOR => {
-                let call = args::<start_monitor>(payload)?;
-                self.forward(PeerRequest::StartMonitor {
-                    id: call.id,
-                    options: call.options,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <stop as MethodMsg>::SELECTOR => {
-                let call = args::<stop>(payload)?;
-                self.forward(PeerRequest::Stop {
-                    id: call.id,
-                    feature: call.feature,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <set_unicursor_edge as MethodMsg>::SELECTOR => {
-                let call = args::<set_unicursor_edge>(payload)?;
-                self.forward(PeerRequest::SetUnicursorEdge {
-                    id: call.id,
-                    edge: call.edge,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <pickup_call as MethodMsg>::SELECTOR => {
-                let call = args::<pickup_call>(payload)?;
-                self.forward(PeerRequest::PickupCall {
-                    call_id: call.call_id,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <decline_call as MethodMsg>::SELECTOR => {
-                let call = args::<decline_call>(payload)?;
-                self.forward(PeerRequest::DeclineCall {
-                    call_id: call.call_id,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <hangup_call as MethodMsg>::SELECTOR => {
-                let call = args::<hangup_call>(payload)?;
-                self.forward(PeerRequest::HangupCall {
-                    call_id: call.call_id,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <dial as MethodMsg>::SELECTOR => {
-                let call = args::<dial>(payload)?;
-                self.forward(PeerRequest::Dial {
-                    id: call.id,
-                    number: call.number,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <set_hotspot as MethodMsg>::SELECTOR => {
-                let call = args::<set_hotspot>(payload)?;
-                self.forward(PeerRequest::SetHotspot {
-                    id: call.id,
-                    enabled: call.enabled,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            <pair_with_qr as MethodMsg>::SELECTOR => {
-                let call = args::<pair_with_qr>(payload)?;
-                self.forward(PeerRequest::PairWithQr {
-                    qr: call.qr,
-                    reply: self.responder(peer, req_id),
-                });
-            }
-            selector => reply(server, Err(RemoteError::unknown_method(selector))),
-        }
-        Ok(())
-    }
-
     fn notice(&self, selector: u64, payload: &[u8]) -> Result<(), Malformed> {
         use proto::*;
         let notice = match selector {
@@ -388,6 +212,13 @@ impl Router {
                     conversation_id: call.conversation_id,
                     text: call.text,
                 }
+            }
+            <cancel_capture as MethodMsg>::SELECTOR => {
+                PeerNotice::CancelCapture(args::<cancel_capture>(payload)?.capture)
+            }
+            <stop_local_ring as MethodMsg>::SELECTOR => {
+                args::<stop_local_ring>(payload)?;
+                PeerNotice::StopLocalRing
             }
             _ => return Ok(()),
         };

@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use llts_node::bridge::driver_class;
 use llts_node::{KnownPeer, LocalDevice, Node, NodeConfig};
-use llts_signaling::device::{DeviceClass, DeviceId, FeatureSet};
+use llts_signaling::device::{DeviceClass, DeviceId};
 use llts_signaling::message::{AudioCodec, Capabilities, CodecList, VideoCodec};
 use llts_transport::pairing::{FileTrustStore, TrustStore};
 use llts_transport::session::{Driver, DriverConfig};
@@ -19,7 +19,7 @@ use super::{PeerRuntimeError, PeerServices};
 use crate::config::DaemonConfig;
 use crate::ipc::proto::Feature;
 use crate::pairing::ffsp_bridge::FfspLinkStore;
-use crate::peer::convert::signaling_feature;
+use crate::peer::convert::{signaling_feature, signaling_features};
 use crate::peer::feature_store::FeatureStore;
 use crate::peer::link_monitor::LinkMonitor;
 use crate::peer::wakeup::{RuntimeWaker, Wakeup};
@@ -31,6 +31,20 @@ const FALLBACK_MODEL: &str = "Linux computer";
 /// Hardware HEVC first, H.264 wherever HEVC is missing on either end.
 const VIDEO_CODECS: [VideoCodec; 2] = [VideoCodec::Hevc, VideoCodec::H264];
 const AUDIO_CODECS: [AudioCodec; 1] = [AudioCodec::Opus];
+/// What this build can run; the node only negotiates features both ends advertise.
+const IMPLEMENTED: [Feature; 11] = [
+    Feature::Mirror,
+    Feature::Camera,
+    Feature::Mic,
+    Feature::Monitor,
+    Feature::Unicursor,
+    Feature::Calls,
+    Feature::Clipboard,
+    Feature::Notifications,
+    Feature::Battery,
+    Feature::Hotspot,
+    Feature::Files,
+];
 
 fn model() -> String {
     std::fs::read_to_string(PRODUCT_NAME)
@@ -40,10 +54,6 @@ fn model() -> String {
         .unwrap_or_else(|| FALLBACK_MODEL.to_owned())
 }
 
-fn signaling_features(features: crate::ipc::proto::FeatureSet) -> FeatureSet {
-    features.iter().map(signaling_feature).collect()
-}
-
 fn local_device(config: &DaemonConfig) -> LocalDevice {
     LocalDevice {
         name: config.device_name.clone(),
@@ -51,7 +61,7 @@ fn local_device(config: &DaemonConfig) -> LocalDevice {
         capabilities: Capabilities {
             video_codecs: CodecList::from_slice(&VIDEO_CODECS).unwrap_or_default(),
             audio_codecs: CodecList::from_slice(&AUDIO_CODECS).unwrap_or_default(),
-            features: signaling_features(Feature::ALL.into_iter().collect()),
+            features: IMPLEMENTED.into_iter().map(signaling_feature).collect(),
             device_class: DeviceClass::Computer,
         },
     }

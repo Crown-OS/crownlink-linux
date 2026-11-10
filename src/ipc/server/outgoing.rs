@@ -15,6 +15,15 @@ pub(crate) enum OutgoingEvent {
     HotspotChanged(proto::HotspotChanged),
     FeatureChanged(proto::FeatureChanged),
     FeatureFailed(proto::FeatureFailed),
+    MessageChanged(proto::MessageChanged),
+    CollectionsChanged(proto::CollectionsChanged),
+    CaptureFinished(proto::CaptureFinished),
+    TransferChanged(proto::TransferChanged),
+    AudioRoutesChanged(proto::AudioRoutesChanged),
+    FocusChanged(proto::FocusChanged),
+    LiveActivitiesChanged(proto::LiveActivitiesChanged),
+    WifiReceived(proto::WifiReceived),
+    LocalRingChanged(proto::LocalRingChanged),
 }
 
 impl OutgoingEvent {
@@ -30,6 +39,15 @@ impl OutgoingEvent {
             Self::HotspotChanged(event) => server.emit(event),
             Self::FeatureChanged(event) => server.emit(event),
             Self::FeatureFailed(event) => server.emit(event),
+            Self::MessageChanged(event) => server.emit(event),
+            Self::CollectionsChanged(event) => server.emit(event),
+            Self::CaptureFinished(event) => server.emit(event),
+            Self::TransferChanged(event) => server.emit(event),
+            Self::AudioRoutesChanged(event) => server.emit(event),
+            Self::FocusChanged(event) => server.emit(event),
+            Self::LiveActivitiesChanged(event) => server.emit(event),
+            Self::WifiReceived(event) => server.emit(event),
+            Self::LocalRingChanged(event) => server.emit(event),
         }
     }
 }

@@ -3,15 +3,17 @@ use std::collections::BTreeMap;
 use crownos_ipc::RemoteError;
 use llts_signaling::message::{Snapshot, Update};
 use llts_signaling::state::{
-    Applied, Battery as SignalingBattery, CallState, Hotspot, MediaSession, StateCache,
-    Topic as SignalingTopic, TopicSet, Version,
+    Applied, AudioRoutes as SignalingRoutes, Battery as SignalingBattery, CallState, Focus,
+    Hotspot, LiveActivities, MediaSession, StateCache, Topic as SignalingTopic, TopicSet, Version,
 };
 
 use super::convert::{call_info, media_info, signaling_id, signaling_topic};
 use super::outgoing::OutgoingEvent;
 use crate::ipc::proto::{
-    self, Battery, CallInfo, DeviceId, DeviceInfo, Feature, FeatureSet, FeatureState, Topic,
+    self, AudioRoutes, Battery, CallInfo, CaptureStatus, Collections, DeviceId, DeviceInfo,
+    Feature, FeatureSet, FeatureState, FocusInfo, LiveActivity, MessageChange, Topic, Transfer,
 };
+use crate::peer::convert::{ipc_audio_routes, ipc_focus, ipc_live_activity};
 
 /// One state document as the peer runtime received it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,6 +77,26 @@ pub enum DaemonEvent {
         topics: TopicSet,
         updates: Vec<OwnedUpdate>,
     },
+    MessageChanged {
+        id: DeviceId,
+        change: MessageChange,
+    },
+    /// A device's collection counters, already cleared for features it no longer shares.
+    Collections {
+        id: DeviceId,
+        collections: Collections,
+    },
+    Transfer(Transfer),
+    CaptureFinished {
+        capture: u32,
+        status: CaptureStatus,
+    },
+    WifiReceived {
+        id: DeviceId,
+        ssid: String,
+    },
+    /// Which device rings this computer now, if any.
+    LocalRing(Option<DeviceId>),
 }
 
 /// The IPC server's view of every device: the registry and the state each one published.
@@ -82,6 +104,8 @@ pub enum DaemonEvent {
 pub(crate) struct DaemonState {
     devices: BTreeMap<DeviceId, DeviceInfo>,
     cache: StateCache,
+    collections: BTreeMap<DeviceId, Collections>,
+    local_ring: Option<DeviceId>,
 }
 
 fn unknown(id: DeviceId) -> RemoteError {
@@ -127,13 +151,70 @@ impl DaemonState {
     }
 
     pub(crate) fn state(&self, id: DeviceId, topic: Topic) -> Result<Option<Vec<u8>>, RemoteError> {
-        if !self.devices.contains_key(&id) {
-            return Err(unknown(id));
-        }
+        self.known(id)?;
         Ok(self
             .cache
             .update(&signaling_id(id), signaling_topic(topic))
             .map(|update| update.payload.to_vec()))
+    }
+
+    pub(crate) fn focus(&self, id: DeviceId) -> Result<Option<FocusInfo>, RemoteError> {
+        self.known(id)?;
+        Ok(self.focus_of(id))
+    }
+
+    pub(crate) fn live_activities(&self, id: DeviceId) -> Result<Vec<LiveActivity>, RemoteError> {
+        self.known(id)?;
+        Ok(self.live_activities_of(id))
+    }
+
+    pub(crate) fn audio_routes(&self, id: DeviceId) -> Result<Option<AudioRoutes>, RemoteError> {
+        self.known(id)?;
+        Ok(self.audio_routes_of(id))
+    }
+
+    pub(crate) fn collections(&self, id: DeviceId) -> Result<Collections, RemoteError> {
+        self.known(id)?;
+        Ok(self.collections.get(&id).copied().unwrap_or_default())
+    }
+
+    pub(crate) const fn local_ring(&self) -> Option<DeviceId> {
+        self.local_ring
+    }
+
+    fn known(&self, id: DeviceId) -> Result<(), RemoteError> {
+        if self.devices.contains_key(&id) {
+            Ok(())
+        } else {
+            Err(unknown(id))
+        }
+    }
+
+    fn focus_of(&self, id: DeviceId) -> Option<FocusInfo> {
+        self.cache
+            .get::<Focus<'_>>(&signaling_id(id))
+            .ok()
+            .flatten()
+            .as_ref()
+            .map(ipc_focus)
+    }
+
+    fn live_activities_of(&self, id: DeviceId) -> Vec<LiveActivity> {
+        self.cache
+            .get::<LiveActivities<'_>>(&signaling_id(id))
+            .ok()
+            .flatten()
+            .map(|live| live.activities.iter().map(ipc_live_activity).collect())
+            .unwrap_or_default()
+    }
+
+    fn audio_routes_of(&self, id: DeviceId) -> Option<AudioRoutes> {
+        self.cache
+            .get::<SignalingRoutes<'_>>(&signaling_id(id))
+            .ok()
+            .flatten()
+            .as_ref()
+            .map(ipc_audio_routes)
     }
 
     pub(crate) fn apply(&mut self, event: DaemonEvent) -> Vec<OutgoingEvent> {
@@ -152,6 +233,7 @@ impl DaemonState {
             }
             DaemonEvent::DeviceRemoved(id) => {
                 self.cache.forget(&signaling_id(id));
+                self.collections.remove(&id);
                 if self.devices.remove(&id).is_some() {
                     vec![self.devices_changed()]
                 } else {
@@ -231,6 +313,41 @@ impl DaemonState {
                     .flat_map(|topic| self.topic_events(owner, topic))
                     .collect()
             }
+            DaemonEvent::MessageChanged { id, change } => {
+                vec![OutgoingEvent::MessageChanged(proto::MessageChanged {
+                    id,
+                    change,
+                })]
+            }
+            DaemonEvent::Collections { id, collections } => {
+                self.collections.insert(id, collections);
+                vec![OutgoingEvent::CollectionsChanged(
+                    proto::CollectionsChanged { id, collections },
+                )]
+            }
+            DaemonEvent::Transfer(transfer) => {
+                vec![OutgoingEvent::TransferChanged(proto::TransferChanged {
+                    transfer,
+                })]
+            }
+            DaemonEvent::CaptureFinished { capture, status } => {
+                vec![OutgoingEvent::CaptureFinished(proto::CaptureFinished {
+                    capture,
+                    status,
+                })]
+            }
+            DaemonEvent::WifiReceived { id, ssid } => {
+                vec![OutgoingEvent::WifiReceived(proto::WifiReceived {
+                    id,
+                    ssid,
+                })]
+            }
+            DaemonEvent::LocalRing(by) => {
+                self.local_ring = by;
+                vec![OutgoingEvent::LocalRingChanged(proto::LocalRingChanged {
+                    by,
+                })]
+            }
         }
     }
 
@@ -293,7 +410,33 @@ impl DaemonState {
                     .collect(),
                 _ => Vec::new(),
             },
-            _ => Vec::new(),
+            SignalingTopic::Focus => self
+                .focus_of(owner)
+                .map(|focus| OutgoingEvent::FocusChanged(proto::FocusChanged { id: owner, focus }))
+                .into_iter()
+                .collect(),
+            SignalingTopic::LiveActivities => {
+                vec![OutgoingEvent::LiveActivitiesChanged(
+                    proto::LiveActivitiesChanged {
+                        id: owner,
+                        activities: self.live_activities_of(owner),
+                    },
+                )]
+            }
+            SignalingTopic::AudioRoutes => self
+                .audio_routes_of(owner)
+                .map(|routes| {
+                    OutgoingEvent::AudioRoutesChanged(proto::AudioRoutesChanged {
+                        id: owner,
+                        routes,
+                    })
+                })
+                .into_iter()
+                .collect(),
+            SignalingTopic::DeviceInfo
+            | SignalingTopic::Notifications
+            | SignalingTopic::Clipboard
+            | SignalingTopic::Volume => Vec::new(),
         }
     }
 }
@@ -416,6 +559,134 @@ mod tests {
             [OutgoingEvent::MediaChanged(proto::MediaChanged {
                 id: PHONE,
                 media: None
+            })]
+        );
+    }
+
+    #[test]
+    fn focus_live_activities_and_audio_routes_are_announced_and_served(
+    ) -> Result<(), postcard::Error> {
+        use llts_signaling::state::{FocusMode, Headset, HybridTimestamp, LiveActivity as Live};
+
+        let mut state = DaemonState::default();
+        state.apply(DaemonEvent::DeviceUpdated(phone()));
+        let focus = Focus {
+            mode: FocusMode::DoNotDisturb,
+            until_unix_ms: Some(10),
+            stamp: HybridTimestamp::default(),
+        };
+        let events = state.apply(DaemonEvent::StateUpdate {
+            owner: PHONE,
+            update: update(&focus, 1)?,
+        });
+        let expected = FocusInfo {
+            mode: proto::FocusMode::DoNotDisturb,
+            until_unix_ms: Some(10),
+        };
+        assert_eq!(
+            events,
+            [OutgoingEvent::FocusChanged(proto::FocusChanged {
+                id: PHONE,
+                focus: expected.clone()
+            })]
+        );
+        assert_eq!(state.focus(PHONE).ok().flatten(), Some(expected));
+
+        let live = LiveActivities {
+            activities: vec![Live {
+                id: "k",
+                package: "p",
+                app: "Maps",
+                title: "Home",
+                text: "5 min",
+                short_text: None,
+                category: Some("navigation"),
+                progress: None,
+                chronometer: None,
+                promoted: true,
+                color_argb: None,
+                actions: Vec::new(),
+            }],
+        };
+        let events = state.apply(DaemonEvent::StateUpdate {
+            owner: PHONE,
+            update: update(&live, 1)?,
+        });
+        assert!(matches!(
+            events.as_slice(),
+            [OutgoingEvent::LiveActivitiesChanged(changed)] if changed.activities.len() == 1
+        ));
+        assert_eq!(
+            state
+                .live_activities(PHONE)
+                .ok()
+                .map(|activities| activities.len()),
+            Some(1)
+        );
+
+        let routes = SignalingRoutes {
+            headsets: vec![Headset {
+                address: "AA:BB:CC:DD:EE:FF",
+                name: "Buds",
+                connected: false,
+            }],
+        };
+        let events = state.apply(DaemonEvent::StateUpdate {
+            owner: PHONE,
+            update: update(&routes, 1)?,
+        });
+        assert!(matches!(
+            events.as_slice(),
+            [OutgoingEvent::AudioRoutesChanged(changed)] if changed.routes.headsets.len() == 1
+        ));
+        assert!(state.audio_routes(DeviceId([1; 32])).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn collections_are_none_until_published_and_forgotten_with_the_device() {
+        let mut state = DaemonState::default();
+        state.apply(DaemonEvent::DeviceUpdated(phone()));
+        assert_eq!(state.collections(PHONE).ok(), Some(Collections::default()));
+        let collections = Collections {
+            calls: Some(proto::CallCounters {
+                call_log_revision: 1,
+                voicemail_revision: 2,
+                missed: 3,
+                unheard_voicemails: 0,
+                capabilities: proto::CallCounters::VOICEMAIL_AUDIO,
+            }),
+            ..Collections::default()
+        };
+        let events = state.apply(DaemonEvent::Collections {
+            id: PHONE,
+            collections,
+        });
+        assert_eq!(
+            events,
+            [OutgoingEvent::CollectionsChanged(
+                proto::CollectionsChanged {
+                    id: PHONE,
+                    collections
+                }
+            )]
+        );
+        assert_eq!(state.collections(PHONE).ok(), Some(collections));
+        state.apply(DaemonEvent::DeviceRemoved(PHONE));
+        assert!(state.collections(PHONE).is_err());
+    }
+
+    #[test]
+    fn the_local_ring_is_remembered_until_it_stops() {
+        let mut state = DaemonState::default();
+        assert_eq!(state.local_ring(), None);
+        state.apply(DaemonEvent::LocalRing(Some(PHONE)));
+        assert_eq!(state.local_ring(), Some(PHONE));
+        let events = state.apply(DaemonEvent::LocalRing(None));
+        assert_eq!(
+            events,
+            [OutgoingEvent::LocalRingChanged(proto::LocalRingChanged {
+                by: None
             })]
         );
     }

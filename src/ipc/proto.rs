@@ -75,6 +75,87 @@ crownos_ipc::protocol! {
         /// [`pairing_begin`] produced it. Phones scan the code instead.
         fn pair_with_qr(qr: String);
 
+        /// One page of a device's conversations, newest first.
+        fn conversations(id: DeviceId, page: PageRequest) -> ConversationPage;
+        /// One page of one conversation's messages, newest first.
+        fn messages(id: DeviceId, thread_id: u64, page: PageRequest) -> MessagePage;
+        /// Send an SMS/MMS from a device; returns the phone's message id once it is queued.
+        /// `draft.attachments` are local file paths, streamed to the phone after the request;
+        /// a text over 32 KiB or more than 32 recipients or 16 attachments fails at once.
+        fn send_message(id: DeviceId, draft: MessageDraft) -> String;
+        /// Mark a conversation read on the device.
+        fn mark_read(id: DeviceId, thread_id: u64);
+        /// A blob a page referenced (attachment, thumbnail, contact photo, voicemail audio),
+        /// downloaded into crownlink's cache; returns where it is. Fails unless `feature` is
+        /// enabled for the device and was granted by it, even when the blob is cached.
+        fn fetch_blob(id: DeviceId, feature: Feature, key: String) -> BlobFile;
+
+        /// One page of a device's call log, newest first.
+        fn call_log(id: DeviceId, page: PageRequest) -> CallLogPage;
+        /// One page of a device's voicemails, newest first.
+        fn voicemails(id: DeviceId, page: PageRequest) -> VoicemailPage;
+        /// One page of a device's contacts, by display name.
+        fn contacts(id: DeviceId, page: PageRequest) -> ContactPage;
+        /// The device's counters and capabilities, one field per collection; a field is `None`
+        /// until the device published it and whenever its feature is not shared.
+        fn collections(id: DeviceId) -> Collections;
+
+        /// Ask the device to capture; returns a capture id at once. The outcome arrives as
+        /// `CaptureFinished` and stays readable through `capture_status`. For `Paste`, the
+        /// window focused when this is called is the paste target; callers close their own
+        /// popups first.
+        fn capture(id: DeviceId, request: CaptureRequest) -> u32;
+        /// Give up on a capture; the device closes its capture screen.
+        notify cancel_capture(capture: u32);
+        /// Where a capture this daemon started stands.
+        fn capture_status(capture: u32) -> CaptureStatus;
+
+        /// The files and blobs moving between this computer and its devices, newest last.
+        fn transfers() -> Vec<Transfer>;
+
+        /// Show one app of the device on this computer (the device picks the app).
+        fn start_cast(id: DeviceId, options: CastOptions);
+        /// Play this computer's audio on the device (`ToPeer`) or the device's here (`FromPeer`).
+        fn start_audio(id: DeviceId, options: AudioOptions);
+        /// Move a headset both devices are bonded with to `to`.
+        fn move_headset(id: DeviceId, address: String, to: HeadsetOwner);
+        /// The headsets a device could hand over; `None` until it published them.
+        fn audio_routes(id: DeviceId) -> Option<AudioRoutes>;
+        /// The headsets this computer could hand over.
+        fn local_audio_routes() -> AudioRoutes;
+
+        /// This computer's focus changed (called by crownotify); published to devices.
+        fn set_focus(focus: FocusInfo);
+        /// A device's focus mode; `None` until it published one.
+        fn focus(id: DeviceId) -> Option<FocusInfo>;
+
+        /// A device's ongoing activities, most important first.
+        fn live_activities(id: DeviceId) -> Vec<LiveActivity>;
+        /// Press a button of one of a device's live activities.
+        fn live_activity_action(id: DeviceId, activity_id: String, action_id: String);
+
+        /// Send this computer's saved credentials for `ssid` to the device, after the user
+        /// confirms a crownlink notification and NetworkManager (polkit) releases the secret.
+        fn share_wifi(id: DeviceId, ssid: String);
+        /// Ask the device for `ssid`'s credentials; answered once the device's user approved
+        /// and the network is saved (or its secret updated) here.
+        fn request_wifi(id: DeviceId, ssid: String);
+
+        /// Ring a device at full volume, even when it is silenced, until stopped.
+        fn ring_device(id: DeviceId);
+        /// Stop a device ringing.
+        fn stop_ringing(id: DeviceId);
+        /// Where a device is now, as its next position fix says.
+        fn locate(id: DeviceId) -> DeviceLocation;
+        /// Which device is ringing this computer, if any.
+        fn local_ring() -> Option<DeviceId>;
+        /// Stop this computer ringing.
+        notify stop_local_ring();
+
+        /// Open `uri` on the device (tel:, sms:, smsto:, http(s):, mailto:, geo:; ≤ 2048 bytes);
+        /// the device asks its user before opening it.
+        fn open_on_device(id: DeviceId, uri: String);
+
         /// A device connected or disconnected.
         event DeviceConnected { id: DeviceId, name: String, connected: bool };
         /// The device list changed; carries the whole new list.
@@ -97,6 +178,24 @@ crownos_ipc::protocol! {
         /// A feature could not start or its pipeline stopped on its own; `reason` says why in
         /// words for the user. A `FeatureChanged` with the resulting state follows.
         event FeatureFailed { id: DeviceId, feature: Feature, reason: String };
+        /// A message arrived, changed or went away on a device; `messages` has the rest.
+        event MessageChanged { id: DeviceId, change: MessageChange };
+        /// A device's counters changed, or a feature stopped being shared and cleared them.
+        event CollectionsChanged { id: DeviceId, collections: Collections };
+        /// A capture ended, either way; `capture_status` keeps answering with `status`.
+        event CaptureFinished { capture: u32, status: CaptureStatus };
+        /// A transfer started, progressed or ended.
+        event TransferChanged { transfer: Transfer };
+        /// The headsets a device could hand over changed.
+        event AudioRoutesChanged { id: DeviceId, routes: AudioRoutes };
+        /// A device's focus mode changed.
+        event FocusChanged { id: DeviceId, focus: FocusInfo };
+        /// A device's ongoing activities changed; carries all of them.
+        event LiveActivitiesChanged { id: DeviceId, activities: Vec<LiveActivity> };
+        /// This computer's user chose to join a network a device shared.
+        event WifiReceived { id: DeviceId, ssid: String };
+        /// A device started or stopped ringing this computer.
+        event LocalRingChanged { by: Option<DeviceId> };
     }
 }
 

@@ -1,6 +1,14 @@
 //! Crossings between the IPC schema and llts types, which describe the same things separately
 //! so neither crate depends on the other.
 
+mod cast;
+mod focus;
+mod live;
+
+pub(crate) use cast::{ipc_audio_routes, signaling_audio_routes, start_audio, start_cast};
+pub(crate) use focus::{ipc_focus, signaling_focus_mode};
+pub(crate) use live::ipc_live_activity;
+
 use llts_node::FeatureState as NodeFeatureState;
 use llts_signaling::device::{
     DeviceClass as SignalingClass, DeviceId as SignalingId, Feature as SignalingFeature,
@@ -41,6 +49,18 @@ pub(crate) const fn signaling_feature(feature: Feature) -> SignalingFeature {
         Feature::Battery => SignalingFeature::Battery,
         Feature::Hotspot => SignalingFeature::Hotspot,
         Feature::Files => SignalingFeature::Files,
+        Feature::Messages => SignalingFeature::Messages,
+        Feature::CallHistory => SignalingFeature::CallHistory,
+        Feature::Contacts => SignalingFeature::Contacts,
+        Feature::Capture => SignalingFeature::Capture,
+        Feature::DragDrop => SignalingFeature::DragDrop,
+        Feature::Cast => SignalingFeature::Cast,
+        Feature::AudioHandoff => SignalingFeature::AudioHandoff,
+        Feature::Focus => SignalingFeature::Focus,
+        Feature::LiveActivities => SignalingFeature::LiveActivities,
+        Feature::WifiSharing => SignalingFeature::WifiSharing,
+        Feature::FindMy => SignalingFeature::FindMy,
+        Feature::Links => SignalingFeature::Links,
     }
 }
 
@@ -57,11 +77,27 @@ pub(crate) const fn ipc_feature(feature: SignalingFeature) -> Feature {
         SignalingFeature::Battery => Feature::Battery,
         SignalingFeature::Hotspot => Feature::Hotspot,
         SignalingFeature::Files => Feature::Files,
+        SignalingFeature::Messages => Feature::Messages,
+        SignalingFeature::CallHistory => Feature::CallHistory,
+        SignalingFeature::Contacts => Feature::Contacts,
+        SignalingFeature::Capture => Feature::Capture,
+        SignalingFeature::DragDrop => Feature::DragDrop,
+        SignalingFeature::Cast => Feature::Cast,
+        SignalingFeature::AudioHandoff => Feature::AudioHandoff,
+        SignalingFeature::Focus => Feature::Focus,
+        SignalingFeature::LiveActivities => Feature::LiveActivities,
+        SignalingFeature::WifiSharing => Feature::WifiSharing,
+        SignalingFeature::FindMy => Feature::FindMy,
+        SignalingFeature::Links => Feature::Links,
     }
 }
 
 pub(crate) fn ipc_features(features: SignalingFeatureSet) -> FeatureSet {
     features.iter().map(ipc_feature).collect()
+}
+
+pub(crate) fn signaling_features(features: FeatureSet) -> SignalingFeatureSet {
+    features.iter().map(signaling_feature).collect()
 }
 
 pub(crate) const fn ipc_class(class: SignalingClass) -> DeviceClass {
@@ -81,7 +117,7 @@ pub(crate) const fn ipc_feature_state(state: NodeFeatureState) -> FeatureState {
     }
 }
 
-const fn signaling_limits(limits: VideoLimits) -> SignalingLimits {
+pub(crate) const fn signaling_limits(limits: VideoLimits) -> SignalingLimits {
     SignalingLimits {
         max_width: limits.max_width,
         max_height: limits.max_height,
@@ -98,12 +134,16 @@ pub(crate) const fn signaling_edge(edge: Edge) -> SignalingEdge {
     }
 }
 
+pub(crate) const fn signaling_direction(direction: Direction) -> SignalingDirection {
+    match direction {
+        Direction::ToPeer => SignalingDirection::ToPeer,
+        Direction::FromPeer => SignalingDirection::FromPeer,
+    }
+}
+
 pub(crate) const fn start_mirror(options: MirrorOptions) -> StartMirror {
     StartMirror {
-        direction: match options.direction {
-            Direction::ToPeer => SignalingDirection::ToPeer,
-            Direction::FromPeer => SignalingDirection::FromPeer,
-        },
+        direction: signaling_direction(options.direction),
         limits: signaling_limits(options.limits),
         remote_input: options.remote_input,
     }
@@ -132,6 +172,35 @@ pub(crate) fn start_monitor(options: MonitorOptions) -> StartMonitor {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn both_feature_lists_name_the_same_features_in_the_same_order() {
+        assert_eq!(Feature::ALL.len(), SignalingFeature::ALL.len());
+        for (ipc, signaling) in Feature::ALL.into_iter().zip(SignalingFeature::ALL) {
+            assert_eq!(signaling_feature(ipc), signaling);
+            assert_eq!(ipc as u8, signaling.bit_index());
+        }
+    }
+
+    #[test]
+    fn mirrored_capability_bits_match_the_wire() {
+        use llts_signaling::message::{CallCapabilities, ContactCapabilities, MessageCapabilities};
+
+        use crate::ipc::proto::{CallCounters, ContactCounters, MessageCounters};
+
+        assert_eq!(MessageCounters::SEND_SMS, MessageCapabilities::SEND_SMS.0);
+        assert_eq!(MessageCounters::SEND_MMS, MessageCapabilities::SEND_MMS.0);
+        assert_eq!(MessageCounters::MARK_READ, MessageCapabilities::MARK_READ.0);
+        assert_eq!(
+            CallCounters::VOICEMAIL_AUDIO,
+            CallCapabilities::VOICEMAIL_AUDIO.0
+        );
+        assert_eq!(
+            CallCounters::VOICEMAIL_TRANSCRIPTS,
+            CallCapabilities::VOICEMAIL_TRANSCRIPTS.0
+        );
+        assert_eq!(ContactCounters::PHOTOS, ContactCapabilities::PHOTOS.0);
+    }
 
     #[test]
     fn every_feature_crosses_both_ways() {

@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 /// One capability a paired device can share with this computer.
+///
+/// The discriminant is the bit a [`FeatureSet`] uses, so variants are only ever appended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum Feature {
@@ -15,10 +17,22 @@ pub enum Feature {
     Battery,
     Hotspot,
     Files,
+    Messages,
+    CallHistory,
+    Contacts,
+    Capture,
+    DragDrop,
+    Cast,
+    AudioHandoff,
+    Focus,
+    LiveActivities,
+    WifiSharing,
+    FindMy,
+    Links,
 }
 
 impl Feature {
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 23] = [
         Self::Mirror,
         Self::Camera,
         Self::Mic,
@@ -30,6 +44,18 @@ impl Feature {
         Self::Battery,
         Self::Hotspot,
         Self::Files,
+        Self::Messages,
+        Self::CallHistory,
+        Self::Contacts,
+        Self::Capture,
+        Self::DragDrop,
+        Self::Cast,
+        Self::AudioHandoff,
+        Self::Focus,
+        Self::LiveActivities,
+        Self::WifiSharing,
+        Self::FindMy,
+        Self::Links,
     ];
 
     const fn bit(self) -> u32 {

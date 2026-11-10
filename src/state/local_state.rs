@@ -1,8 +1,11 @@
 use llts_signaling::state::{
-    Battery, Clipboard, ClipboardContent, Hotspot, HybridTimestamp, MediaSession, Published,
-    StatePublisher, Topic, Volume,
+    AudioRoutes as RoutesPayload, Battery, Clipboard, ClipboardContent, Focus, Hotspot,
+    HybridTimestamp, MediaSession, Published, StatePublisher, Topic, Volume,
 };
 use llts_signaling::SignalingError;
+
+use crate::ipc::proto::{AudioRoutes, FocusInfo};
+use crate::peer::convert::{signaling_audio_routes, signaling_focus_mode};
 
 /// What a publisher owns and sends; the llts payloads borrow, so each has a `payload` view.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -12,6 +15,8 @@ pub enum LocalState {
     Media(Option<MediaSnapshot>),
     Clipboard(ClipboardSnapshot),
     Hotspot(HotspotSnapshot),
+    Focus(FocusSnapshot),
+    AudioRoutes(AudioRoutes),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,6 +40,23 @@ pub struct ClipboardSnapshot {
 pub struct HotspotSnapshot {
     pub enabled: bool,
     pub ssid: Option<String>,
+}
+
+/// This computer's focus, stamped by the runtime when it is published.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FocusSnapshot {
+    pub focus: FocusInfo,
+    pub stamp: HybridTimestamp,
+}
+
+impl FocusSnapshot {
+    pub fn payload(&self) -> Focus<'_> {
+        Focus {
+            mode: signaling_focus_mode(&self.focus.mode),
+            until_unix_ms: self.focus.until_unix_ms,
+            stamp: self.stamp,
+        }
+    }
 }
 
 impl MediaSnapshot {
@@ -80,6 +102,8 @@ impl LocalState {
             Self::Media(_) => Topic::MediaSession,
             Self::Clipboard(_) => Topic::Clipboard,
             Self::Hotspot(_) => Topic::Hotspot,
+            Self::Focus(_) => Topic::Focus,
+            Self::AudioRoutes(_) => Topic::AudioRoutes,
         }
     }
 
@@ -96,6 +120,10 @@ impl LocalState {
             Self::Media(media) => publisher.publish(&media.as_ref().map(MediaSnapshot::payload)),
             Self::Clipboard(clipboard) => publisher.publish(&clipboard.payload()?),
             Self::Hotspot(hotspot) => publisher.publish(&hotspot.payload()),
+            Self::Focus(focus) => publisher.publish(&focus.payload()),
+            Self::AudioRoutes(routes) => {
+                publisher.publish::<RoutesPayload<'_>>(&signaling_audio_routes(routes))
+            }
         }
     }
 }
@@ -143,6 +171,38 @@ mod tests {
             Published::Changed(_)
         ));
         assert_eq!(publisher.get::<Option<MediaSession<'_>>>()?, Some(None));
+        Ok(())
+    }
+
+    #[test]
+    fn focus_and_audio_routes_publish_under_their_topics() -> Result<(), SignalingError> {
+        let mut publisher = StatePublisher::new(Incarnation::from_raw(3));
+        let focus = LocalState::Focus(FocusSnapshot {
+            focus: FocusInfo {
+                mode: crate::ipc::proto::FocusMode::Named("Work".into()),
+                until_unix_ms: None,
+            },
+            stamp: HybridTimestamp {
+                wall_ms: 5,
+                counter: 0,
+            },
+        });
+        assert_eq!(focus.topic(), Topic::Focus);
+        assert!(matches!(
+            focus.publish_into(&mut publisher)?,
+            Published::Changed(_)
+        ));
+        let published: Option<Focus<'_>> = publisher.get()?;
+        assert_eq!(
+            published.map(|focus| focus.mode),
+            Some(llts_signaling::state::FocusMode::Named("Work"))
+        );
+        let routes = LocalState::AudioRoutes(AudioRoutes::default());
+        assert_eq!(routes.topic(), Topic::AudioRoutes);
+        assert!(matches!(
+            routes.publish_into(&mut publisher)?,
+            Published::Changed(_)
+        ));
         Ok(())
     }
 

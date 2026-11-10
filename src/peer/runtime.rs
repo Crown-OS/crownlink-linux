@@ -7,6 +7,7 @@
 //! block it.
 
 mod active_streams;
+mod application;
 mod calls;
 mod clock;
 mod devices;

@@ -12,7 +12,7 @@ pub mod media_coordinator;
 pub mod runtime;
 mod wakeup;
 
-pub use command::{PeerCommand, PeerNotice, PeerRequest};
+pub use command::{unavailable_reason, PeerCommand, PeerNotice, PeerRequest};
 pub use media_coordinator::{
     EncodedFrame, LoggingMediaCoordinator, MediaCoordinator, MediaOutput, UnicursorSignal,
 };

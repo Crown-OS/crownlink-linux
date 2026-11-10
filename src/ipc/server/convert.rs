@@ -21,6 +21,9 @@ pub(crate) const fn signaling_topic(topic: Topic) -> SignalingTopic {
         Topic::Clipboard => SignalingTopic::Clipboard,
         Topic::Hotspot => SignalingTopic::Hotspot,
         Topic::Calls => SignalingTopic::CallState,
+        Topic::Focus => SignalingTopic::Focus,
+        Topic::LiveActivities => SignalingTopic::LiveActivities,
+        Topic::AudioRoutes => SignalingTopic::AudioRoutes,
     }
 }
 
@@ -69,6 +72,9 @@ mod tests {
             Topic::Clipboard,
             Topic::Hotspot,
             Topic::Calls,
+            Topic::Focus,
+            Topic::LiveActivities,
+            Topic::AudioRoutes,
         ];
         let mut mapped: Vec<_> = topics.into_iter().map(signaling_topic).collect();
         mapped.sort_unstable();

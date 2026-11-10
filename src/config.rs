@@ -3,7 +3,10 @@
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::path::PathBuf;
 
-use crate::ipc::proto::{Feature, FeatureSet};
+use llts_signaling::device::FeatureSet as SignalingFeatureSet;
+
+use crate::ipc::proto::FeatureSet;
+use crate::peer::convert::ipc_features;
 use crate::util::xdg;
 
 /// The UDP port llts listens on unless `CROWNLINK_LLTS_PORT` overrides it.
@@ -146,10 +149,11 @@ fn device_name() -> String {
         .unwrap_or_else(|| FALLBACK_DEVICE_NAME.to_owned())
 }
 
-/// Everything: streaming features still need an explicit start from the user, so allowing
-/// them only means the device may be asked.
+/// Everything but the features that expose personal data, credentials or location: streaming
+/// features still need an explicit start from the user, so allowing them only means the
+/// device may be asked, while personal ones wait for the user to turn them on.
 pub fn default_features() -> FeatureSet {
-    Feature::ALL.into_iter().collect()
+    ipc_features(SignalingFeatureSet::DEFAULT)
 }
 
 #[cfg(test)]
@@ -189,7 +193,19 @@ mod tests {
     }
 
     #[test]
-    fn new_devices_may_use_every_feature() {
-        assert_eq!(default_features().iter().count(), Feature::ALL.len());
+    fn new_devices_may_use_every_feature_but_the_personal_ones() {
+        use crate::ipc::proto::Feature;
+
+        let personal = [
+            Feature::Messages,
+            Feature::CallHistory,
+            Feature::Contacts,
+            Feature::WifiSharing,
+            Feature::FindMy,
+            Feature::Links,
+        ];
+        let defaults = default_features();
+        assert!(personal.iter().all(|feature| !defaults.contains(*feature)));
+        assert_eq!(defaults.iter().count(), Feature::ALL.len() - personal.len());
     }
 }

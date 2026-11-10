@@ -11,5 +11,7 @@ pub mod session_lock;
 mod sink;
 
 pub use controls::{LocalCommandReceivers, LocalControls};
-pub use local_state::{ClipboardSnapshot, HotspotSnapshot, LocalState, MediaSnapshot};
+pub use local_state::{
+    ClipboardSnapshot, FocusSnapshot, HotspotSnapshot, LocalState, MediaSnapshot,
+};
 pub use sink::{state_channel, StateSink};
