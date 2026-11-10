@@ -4,6 +4,7 @@
 //! Anything but a press of one of the offered buttons is a refusal: dismissing the notification,
 //! pressing its body, the timeout, or no notification server at all.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -18,6 +19,8 @@ const APP_ICON: &str = "phone";
 const CRITICAL_URGENCY: u8 = 2;
 /// The notification stays until it is answered; the prompt's own timeout ends it.
 const NEVER_EXPIRES: i32 = 0;
+/// A server listing this reads bodies as markup; summaries are always plain text.
+const BODY_MARKUP: &str = "body-markup";
 pub const DEFAULT_PROMPT_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[derive(Debug, thiserror::Error)]
@@ -33,7 +36,7 @@ pub struct PromptAction {
     pub label: &'static str,
 }
 
-/// A question for the user. `summary` and `body` are plain text; markup is escaped.
+/// A question for the user. `summary` and `body` are plain text, shown as written.
 #[derive(Debug, Clone, Copy)]
 pub struct Prompt<'a> {
     pub summary: &'a str,
@@ -62,6 +65,8 @@ trait Notifications {
     ) -> zbus::Result<u32>;
 
     fn close_notification(&self, id: u32) -> zbus::Result<()>;
+
+    fn get_capabilities(&self) -> zbus::Result<Vec<String>>;
 
     #[zbus(signal)]
     fn action_invoked(&self, id: u32, action_key: String) -> zbus::Result<()>;
@@ -104,14 +109,15 @@ impl Prompts {
             ("urgency", Value::U8(CRITICAL_URGENCY)),
             ("resident", Value::Bool(true)),
         ]);
+        let body = self.plain_body(prompt.body).await;
         let id = self
             .notifications
             .notify(
                 APP_NAME,
                 0,
                 APP_ICON,
-                &escape(prompt.summary),
-                &escape(prompt.body),
+                prompt.summary,
+                &body,
                 &actions,
                 hints,
                 NEVER_EXPIRES,
@@ -150,6 +156,20 @@ impl Prompts {
                 let _ = self.notifications.close_notification(id).await;
                 Ok(None)
             }
+        }
+    }
+
+    /// `body` as the server will show it as written.
+    async fn plain_body<'a>(&self, body: &'a str) -> Cow<'a, str> {
+        let markup = self
+            .notifications
+            .get_capabilities()
+            .await
+            .is_ok_and(|capabilities| capabilities.iter().any(|name| name == BODY_MARKUP));
+        if markup {
+            escape(body)
+        } else {
+            Cow::Borrowed(body)
         }
     }
 }
