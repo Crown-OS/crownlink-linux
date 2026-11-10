@@ -11,6 +11,8 @@ mod error;
 pub mod files;
 mod input_route;
 mod input_wire;
+pub mod links;
+pub mod messages;
 mod mic;
 mod mirror;
 mod monitor;

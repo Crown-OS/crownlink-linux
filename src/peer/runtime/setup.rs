@@ -14,7 +14,9 @@ use llts_transport::session::{Driver, DriverConfig};
 use super::active_streams::ActiveStreams;
 use super::calls::HandsFreeCalls;
 use super::clock::RuntimeClock;
+use super::collections::DeviceCollections;
 use super::event_loop::{PeerLoop, PendingReplies};
+use super::pending::PendingRequests;
 use super::{PeerRuntimeError, PeerServices};
 use crate::config::DaemonConfig;
 use crate::ipc::proto::Feature;
@@ -32,7 +34,7 @@ const FALLBACK_MODEL: &str = "Linux computer";
 const VIDEO_CODECS: [VideoCodec; 2] = [VideoCodec::Hevc, VideoCodec::H264];
 const AUDIO_CODECS: [AudioCodec; 1] = [AudioCodec::Opus];
 /// What this build can run; the node only negotiates features both ends advertise.
-const IMPLEMENTED: [Feature; 11] = [
+const IMPLEMENTED: [Feature; 15] = [
     Feature::Mirror,
     Feature::Camera,
     Feature::Mic,
@@ -44,6 +46,10 @@ const IMPLEMENTED: [Feature; 11] = [
     Feature::Battery,
     Feature::Hotspot,
     Feature::Files,
+    Feature::Messages,
+    Feature::CallHistory,
+    Feature::Contacts,
+    Feature::Links,
 ];
 
 fn model() -> String {
@@ -121,6 +127,7 @@ impl PeerLoop {
             controls,
             advertiser,
             telephony,
+            incoming_links,
             mut media,
         } = services;
         media.attach(RuntimeWaker::new(Arc::clone(&wakeup)));
@@ -133,6 +140,7 @@ impl PeerLoop {
                 controls,
                 advertiser,
                 telephony,
+                incoming_links,
             },
             streams: ActiveStreams::new(media),
             features,
@@ -142,6 +150,8 @@ impl PeerLoop {
             hands_free: HandsFreeCalls::default(),
             listed: BTreeMap::new(),
             pending: PendingReplies::default(),
+            requests: PendingRequests::default(),
+            collections: DeviceCollections::default(),
             failures: Vec::new(),
             applied_clipboard: None,
             commands,

@@ -20,9 +20,12 @@ use tokio::sync::mpsc;
 use super::active_streams::ActiveStreams;
 use super::calls::HandsFreeCalls;
 use super::clock::RuntimeClock;
+use super::collections::DeviceCollections;
+use super::pending::PendingRequests;
 use super::PeerRuntimeError;
 use crate::bluetooth::telephony::TelephonyJob;
 use crate::discovery::Advertiser;
+use crate::features::links::IncomingLink;
 use crate::ipc::proto::{DeviceId, DeviceInfo, PairingOffer};
 use crate::ipc::server::{DaemonEvent, Responder};
 use crate::pairing::ffsp_bridge::FfspLinkStore;
@@ -42,6 +45,7 @@ pub(super) struct Services {
     pub(super) controls: LocalControls,
     pub(super) advertiser: Advertiser,
     pub(super) telephony: mpsc::Sender<TelephonyJob>,
+    pub(super) incoming_links: mpsc::Sender<IncomingLink>,
 }
 
 /// IPC requests answered by a later node event rather than by the command itself.
@@ -65,6 +69,9 @@ pub(super) struct PeerLoop {
     /// The device list as last announced to the IPC server.
     pub(super) listed: BTreeMap<DeviceId, DeviceInfo>,
     pub(super) pending: PendingReplies,
+    /// Requests sent to devices whose answers are still to come.
+    pub(super) requests: PendingRequests,
+    pub(super) collections: DeviceCollections,
     /// Errors the node or driver reported since the current command started.
     pub(super) failures: Vec<NodeError>,
     pub(super) applied_clipboard: Option<HybridTimestamp>,
@@ -174,6 +181,13 @@ impl PeerLoop {
         {
             self.node.handle(now, NodeInput::TimerExpired);
         }
+        if self
+            .requests
+            .next_deadline()
+            .is_some_and(|deadline| !deadline.is_after(now.instant))
+        {
+            self.expire_requests();
+        }
     }
 
     fn sleep_limit(&self) -> Duration {
@@ -181,7 +195,11 @@ impl PeerLoop {
             .node
             .next_timeout()
             .map(|deadline| self.clock.until(deadline));
-        [self.driver.next_timeout(), node]
+        let requests = self
+            .requests
+            .next_deadline()
+            .map(|deadline| self.clock.until(deadline));
+        [self.driver.next_timeout(), node, requests]
             .into_iter()
             .flatten()
             .min()

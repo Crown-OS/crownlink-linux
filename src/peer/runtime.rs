@@ -10,12 +10,16 @@ mod active_streams;
 mod application;
 mod calls;
 mod clock;
+mod collections;
 mod devices;
 mod event_loop;
 mod local;
 mod media;
 mod outputs;
+mod pending;
+mod phone_data;
 mod requests;
+mod send_application;
 mod setup;
 
 use std::sync::mpsc as std_mpsc;
@@ -27,6 +31,7 @@ use tokio::sync::{mpsc, oneshot};
 use crate::bluetooth::telephony::TelephonyJob;
 use crate::config::DaemonConfig;
 use crate::discovery::Advertiser;
+use crate::features::links::IncomingLink;
 use crate::ipc::server::DaemonEvent;
 use crate::peer::identity::IdentityError;
 use crate::peer::media_coordinator::MediaCoordinator;
@@ -44,6 +49,8 @@ pub struct PeerServices {
     pub controls: LocalControls,
     pub advertiser: Advertiser,
     pub telephony: mpsc::Sender<TelephonyJob>,
+    /// Links devices asked to open, for the user to approve.
+    pub incoming_links: mpsc::Sender<IncomingLink>,
     pub media: Box<dyn MediaCoordinator>,
 }
 

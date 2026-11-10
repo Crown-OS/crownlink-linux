@@ -10,6 +10,7 @@ use crownlink_linux::discovery::{self, ble, mdns};
 use crownlink_linux::ipc::server::IpcServer;
 use std::sync::Arc;
 
+use crownlink_linux::features::links::{self, LINK_QUEUE_DEPTH};
 use crownlink_linux::features::{FeatureCoordinator, LinuxPlatform};
 use crownlink_linux::peer::{runtime, PeerCommand, PeerServices};
 use crownlink_linux::state::publishers::{battery, clipboard, hotspot, media, volume};
@@ -86,11 +87,13 @@ async fn supervise(config: DaemonConfig) -> Result<()> {
     let discovery = discovery::channels();
     let (calls, phone_calls) = mpsc::channel(CALLS_QUEUE_DEPTH);
     let (telephony, telephony_jobs) = mpsc::channel(TELEPHONY_QUEUE_DEPTH);
+    let (incoming_links, link_requests) = mpsc::channel(LINK_QUEUE_DEPTH);
     let services = PeerServices {
         daemon_events,
         controls,
         advertiser: discovery.advertiser,
         telephony,
+        incoming_links,
         media: Box::new(FeatureCoordinator::new(Arc::new(LinuxPlatform::new(
             &config,
         )))),
@@ -163,6 +166,12 @@ async fn supervise(config: DaemonConfig) -> Result<()> {
         "telephony control",
         Role::Optional,
         telephony::serve(telephony_jobs),
+    );
+    spawn(
+        &mut tasks,
+        "link prompts",
+        Role::Optional,
+        links::serve(link_requests),
     );
     forward(
         &mut tasks,

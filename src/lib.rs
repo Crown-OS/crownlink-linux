@@ -15,6 +15,8 @@ pub mod bluetooth;
 #[cfg(feature = "daemon")]
 pub mod config;
 #[cfg(feature = "daemon")]
+pub mod desktop;
+#[cfg(feature = "daemon")]
 pub mod discovery;
 #[cfg(feature = "daemon")]
 pub mod features;

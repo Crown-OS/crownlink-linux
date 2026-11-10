@@ -2,12 +2,24 @@
 //! so neither crate depends on the other.
 
 mod cast;
+mod contacts;
+mod counters;
 mod focus;
 mod live;
+mod messages;
+mod phone;
+mod request;
 
 pub(crate) use cast::{ipc_audio_routes, signaling_audio_routes, start_audio, start_cast};
+pub(crate) use contacts::ipc_contact_page;
+pub(crate) use counters::{
+    ipc_call_counters, ipc_contact_counters, ipc_message_counters, shared_collections,
+};
 pub(crate) use focus::{ipc_focus, signaling_focus_mode};
 pub(crate) use live::ipc_live_activity;
+pub(crate) use messages::{ipc_conversation_page, ipc_message_change, ipc_message_page};
+pub(crate) use phone::{ipc_call_log_page, ipc_voicemail_page};
+pub(crate) use request::{request_failure_reason, signaling_page};
 
 use llts_node::FeatureState as NodeFeatureState;
 use llts_signaling::device::{

@@ -15,6 +15,7 @@ use std::time::{Duration, Instant};
 
 use crownlink_linux::config::{default_features, DaemonConfig, DaemonPaths};
 use crownlink_linux::discovery;
+use crownlink_linux::features::links::{IncomingLink, LINK_QUEUE_DEPTH};
 use crownlink_linux::ipc::proto::{self, DeviceId, DeviceInfo};
 use crownlink_linux::ipc::server::IpcServer;
 use crownlink_linux::peer::{runtime, MediaCoordinator, PeerCommand, PeerServices};
@@ -119,6 +120,8 @@ impl Drop for Home {
 pub struct Daemon {
     pub peer: mpsc::Sender<PeerCommand>,
     pub controls: LocalCommandReceivers,
+    /// Links peers asked this daemon to open, where the desktop would prompt for them.
+    pub links: mpsc::Receiver<IncomingLink>,
     shutdown: Option<oneshot::Sender<()>>,
     thread: Option<JoinHandle<()>>,
     pub client: proto::Client,
@@ -129,6 +132,7 @@ impl Daemon {
         let config = home.config();
         let ipc_directory = home.ipc_directory();
         let (controls, receivers) = LocalControls::channels();
+        let (incoming_links, links) = mpsc::channel(LINK_QUEUE_DEPTH);
         let (started, ready) = std_mpsc::channel();
         let (shutdown, stop) = oneshot::channel::<()>();
         let directory = ipc_directory.clone();
@@ -147,6 +151,7 @@ impl Daemon {
                     controls,
                     advertiser: discovery::channels().advertiser,
                     telephony,
+                    incoming_links,
                     media,
                 };
                 started.send(peer).expect("started");
@@ -174,6 +179,7 @@ impl Daemon {
         Self {
             peer,
             controls: receivers,
+            links,
             shutdown: Some(shutdown),
             thread: Some(thread),
             client,

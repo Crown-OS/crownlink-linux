@@ -175,7 +175,8 @@ impl PeerLoop {
             | PeerRequest::CallLog { .. }
             | PeerRequest::Voicemails { .. }
             | PeerRequest::Contacts { .. }
-            | PeerRequest::Capture { .. }
+            | PeerRequest::OpenOnDevice { .. }) => self.on_phone_data_request(request),
+            request @ (PeerRequest::Capture { .. }
             | PeerRequest::MoveHeadset { .. }
             | PeerRequest::SetFocus { .. }
             | PeerRequest::LiveActivityAction { .. }
@@ -183,13 +184,12 @@ impl PeerLoop {
             | PeerRequest::RequestWifi { .. }
             | PeerRequest::RingDevice { .. }
             | PeerRequest::StopRinging { .. }
-            | PeerRequest::Locate { .. }
-            | PeerRequest::OpenOnDevice { .. }) => Self::refuse_unimplemented(request),
+            | PeerRequest::Locate { .. }) => Self::refuse_unimplemented(request),
         }
     }
 
     /// Answers a request for a feature this build does not run with a reason the user can read.
-    fn refuse_unimplemented(request: PeerRequest) {
+    pub(super) fn refuse_unimplemented(request: PeerRequest) {
         let reason = request.continuity_feature().map_or_else(
             || "this build of crownlink cannot do that".to_owned(),
             unavailable_reason,

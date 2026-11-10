@@ -46,10 +46,14 @@ impl PeerLoop {
 
     fn on_app_event(&mut self, event: AppEvent) {
         match event {
-            AppEvent::DevicesChanged => self.sync_devices(),
+            AppEvent::DevicesChanged => {
+                self.sync_devices();
+                self.forget_unshared();
+            }
             AppEvent::DeviceConnected { peer, connected } => {
                 self.streams.coordinator().on_connection(peer, connected);
                 self.sync_devices();
+                self.forget_unshared();
             }
             AppEvent::PairingOffer {
                 uri,

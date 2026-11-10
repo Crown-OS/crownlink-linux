@@ -3,6 +3,8 @@ pub mod av;
 #[cfg(feature = "daemon")]
 pub mod error_chain;
 pub mod latency;
+#[cfg(feature = "daemon")]
+pub mod markup;
 pub mod numeric;
 #[cfg(feature = "daemon")]
 pub mod percent;
@@ -14,6 +16,8 @@ pub mod random;
 pub mod syncobj;
 #[cfg(feature = "daemon")]
 pub mod unix_time;
+#[cfg(feature = "daemon")]
+pub mod uri_scheme;
 #[cfg(feature = "daemon")]
 pub mod xdg;
 pub mod yuv;
