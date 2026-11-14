@@ -45,6 +45,7 @@ pub(crate) fn extend_desktop(
     params: &VideoParams,
     mode: VirtualOutputMode,
     input: &SharedInjector,
+    peer_name: &str,
 ) -> Result<(), FeatureError> {
     let target = CaptureTarget::VirtualOutput {
         name: output_name(&context.peer),
@@ -52,7 +53,7 @@ pub(crate) fn extend_desktop(
     };
     let mut source = platform.screen_source(target, params)?;
     if let Some(name) = source.output_name() {
-        match platform.injector(Some(name.to_owned())) {
+        match platform.guest_injector(name.to_owned(), peer_name) {
             Ok(injector) => {
                 let _ = input.set(injector);
             }

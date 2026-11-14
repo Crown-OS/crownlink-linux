@@ -129,6 +129,15 @@ pub trait MediaPlatform: Send + Sync + std::fmt::Debug {
         Ok(Injector::connect(output)?)
     }
 
+    /// Injects a guest's input into a seat of their own on `output`.
+    ///
+    /// # Errors
+    ///
+    /// Fails without crownos-guest-seat-v1 or crownos-input-v1.
+    fn guest_injector(&self, output: String, guest_name: &str) -> Result<Injector, FeatureError> {
+        Ok(Injector::connect_guest(output, guest_name)?)
+    }
+
     /// # Errors
     ///
     /// Fails without crownos-input-v1.

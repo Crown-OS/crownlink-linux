@@ -150,10 +150,13 @@ impl FeatureCoordinator {
                 let injector = SharedInjector::default();
                 self.input
                     .add(peer, InputOwner::Monitor, Arc::clone(&injector));
+                let peer_name = peer_name.to_owned();
                 (
                     spec("crownlink-monitor"),
                     Box::new(move |context| {
-                        monitor::extend_desktop(context, &*platform, &video, mode, &injector)
+                        monitor::extend_desktop(
+                            context, &*platform, &video, mode, &injector, &peer_name,
+                        )
                     }),
                 )
             }
