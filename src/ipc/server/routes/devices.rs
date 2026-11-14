@@ -71,6 +71,19 @@ pub(super) fn route(
                 reply: call.responder(router),
             });
         }
+        <trust_computer as MethodMsg>::SELECTOR => {
+            let args = call.args::<trust_computer>()?;
+            router.forward(PeerRequest::TrustComputer {
+                key: args.key,
+                name: args.name,
+                address: args.address,
+                reply: call.responder(router),
+            });
+        }
+        <local_identity as MethodMsg>::SELECTOR => {
+            call.args::<local_identity>()?;
+            router.forward(PeerRequest::LocalIdentity(call.responder(router)));
+        }
         <send_file as MethodMsg>::SELECTOR => {
             let args = call.args::<send_file>()?;
             router.forward(PeerRequest::SendFile {

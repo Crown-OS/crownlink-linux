@@ -16,6 +16,13 @@ impl fmt::Display for DeviceId {
     }
 }
 
+/// This computer on the llts link: the id peers trust it by, and where they dial it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LocalIdentity {
+    pub id: DeviceId,
+    pub llts_port: u16,
+}
+
 /// What kind of hardware a device is, as it announced itself during pairing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DeviceClass {

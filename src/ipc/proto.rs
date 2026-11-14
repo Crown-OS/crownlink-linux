@@ -23,6 +23,12 @@ crownos_ipc::protocol! {
         notify pairing_cancel();
         /// Unpair a device and delete its keys.
         fn forget(id: DeviceId);
+        /// Trust a computer another authenticated channel vouched for, by its
+        /// llts key, and dial it at `address` (`ip:port`). Returns its id.
+        fn trust_computer(key: [u8; 32], name: String, address: String) -> DeviceId;
+        /// This computer's own id and the UDP port llts listens on, for
+        /// introducing it to a peer.
+        fn local_identity() -> LocalIdentity;
         /// Allow or forbid one feature for one device.
         fn set_feature(id: DeviceId, feature: Feature, enabled: bool);
         /// The features the user allows for a device.

@@ -24,7 +24,7 @@ pub use capture::{CaptureDestination, CaptureKind, CaptureRequest, CaptureStatus
 pub use cast::{AudioOptions, AudioRoutes, CastOptions, Headset, HeadsetOwner};
 pub use contacts::{Contact, ContactPage, ContactPhone, PhoneKind};
 pub use counters::{CallCounters, Collections, ContactCounters, MessageCounters};
-pub use device::{Battery, DeviceClass, DeviceId, DeviceInfo, LinkKind};
+pub use device::{Battery, DeviceClass, DeviceId, DeviceInfo, LinkKind, LocalIdentity};
 pub use feature::{Feature, FeatureSet, FeatureState};
 pub use focus::{FocusInfo, FocusMode};
 pub use live::{Chronometer, LiveAction, LiveActivity, LiveProgress};

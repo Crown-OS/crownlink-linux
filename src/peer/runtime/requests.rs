@@ -1,9 +1,10 @@
 //! Turning IPC requests and notices into node commands, and answering them.
 
+use std::net::SocketAddr;
 use std::path::Path;
 
 use llts_node::{AppCommand, FeatureRequest, NodeInput, OutgoingCommand, Presence};
-use llts_signaling::device::DeviceId;
+use llts_signaling::device::{DeviceClass as SignalingClass, DeviceId};
 use llts_signaling::message::{FfspTransferId, FileOffer, Media, Reply, SetHotspot};
 use llts_signaling::state::{MediaSession, Notifications};
 
@@ -11,10 +12,10 @@ use super::calls::CallControl;
 use super::event_loop::PeerLoop;
 use crate::discovery::{AddressHint, PresenceEvent};
 use crate::features::files::{start_ffsp_send, FfspSend};
-use crate::ipc::proto::FeatureSet;
+use crate::ipc::proto::{self as ipc, FeatureSet, LocalIdentity};
 use crate::ipc::server::Responder;
 use crate::peer::convert::{
-    signaling_feature, signaling_id, start_audio, start_camera, start_cast, start_mirror,
+    ipc_id, signaling_feature, signaling_id, start_audio, start_camera, start_cast, start_mirror,
     start_monitor,
 };
 use crate::peer::link_monitor::dialable;
@@ -60,6 +61,31 @@ impl PeerLoop {
         }
     }
 
+    /// A computer another authenticated channel vouched for joins as a paired peer and is
+    /// dialled at once.
+    fn trust_computer(
+        &mut self,
+        key: [u8; 32],
+        name: &str,
+        address: &str,
+        reply: Responder<ipc::DeviceId>,
+    ) {
+        let Ok(address) = address.parse::<SocketAddr>() else {
+            return reply.fail(format!("{address} is not an ip:port address"));
+        };
+        let id = ipc::DeviceId(key);
+        let outcome = self.run_app(AppCommand::Trust {
+            peer: signaling_id(id),
+            name,
+            class: SignalingClass::Computer,
+            addresses: &[address],
+        });
+        match outcome {
+            Ok(()) => reply.reply(id),
+            Err(reason) => reply.fail(reason),
+        }
+    }
+
     fn start(&mut self, peer: DeviceId, request: FeatureRequest, reply: Responder<()>) {
         let outcome = self.run_app(AppCommand::StartFeature { peer, request });
         Self::respond(reply, outcome);
@@ -98,6 +124,23 @@ impl PeerLoop {
                     peer: signaling_id(id),
                 });
                 Self::respond(reply, outcome);
+            }
+            PeerRequest::TrustComputer {
+                key,
+                name,
+                address,
+                reply,
+            } => self.trust_computer(key, &name, &address, reply),
+            PeerRequest::LocalIdentity(reply) => {
+                let llts_port = self
+                    .driver
+                    .local_addr()
+                    .map(|address| address.port())
+                    .unwrap_or_default();
+                reply.reply(LocalIdentity {
+                    id: ipc_id(self.node.id()),
+                    llts_port,
+                });
             }
             PeerRequest::SendFile { id, path, reply } => {
                 self.send_file(signaling_id(id), &path, reply)

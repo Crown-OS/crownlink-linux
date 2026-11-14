@@ -13,9 +13,9 @@ use crownlink_linux::ipc::proto::{
     self, AudioOptions, AudioRoutes, Battery, BlobFile, CallLogPage, CameraOptions, CaptureRequest,
     CaptureStatus, CastOptions, Collections, ContactPage, Conversation, ConversationPage,
     DeviceClass, DeviceId, DeviceInfo, DeviceLocation, Edge, Feature, FeatureSet, FeatureState,
-    FocusInfo, FocusMode, HeadsetOwner, LinkKind, LiveActivity, MessageDraft, MessagePage,
-    MirrorOptions, MonitorOptions, PageRequest, PairingOffer, Participant, Topic, Transfer,
-    VoicemailPage,
+    FocusInfo, FocusMode, HeadsetOwner, LinkKind, LiveActivity, LocalIdentity, MessageDraft,
+    MessagePage, MirrorOptions, MonitorOptions, PageRequest, PairingOffer, Participant, Topic,
+    Transfer, VoicemailPage,
 };
 use crownos_ipc::{blocking, Error, MethodMsg, RemoteError, ServiceBuilder};
 
@@ -77,6 +77,22 @@ impl proto::Handler for FakeHub {
 
     fn forget(&mut self, id: DeviceId) -> Result<(), RemoteError> {
         known(id)
+    }
+
+    fn trust_computer(
+        &mut self,
+        key: [u8; 32],
+        _name: String,
+        _address: String,
+    ) -> Result<DeviceId, RemoteError> {
+        Ok(DeviceId(key))
+    }
+
+    fn local_identity(&mut self) -> Result<LocalIdentity, RemoteError> {
+        Ok(LocalIdentity {
+            id: PHONE,
+            llts_port: 0,
+        })
     }
 
     fn set_feature(

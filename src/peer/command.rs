@@ -5,8 +5,8 @@ use crate::discovery::PresenceEvent;
 use crate::ipc::proto::{
     AudioOptions, BlobFile, CallLogPage, CameraOptions, CaptureRequest, CastOptions, ContactPage,
     ConversationPage, DeviceId, DeviceLocation, Edge, Feature, FeatureSet, FocusInfo, HeadsetOwner,
-    MessageDraft, MessagePage, MirrorOptions, MonitorOptions, PageRequest, PairingOffer,
-    VoicemailPage,
+    LocalIdentity, MessageDraft, MessagePage, MirrorOptions, MonitorOptions, PageRequest,
+    PairingOffer, VoicemailPage,
 };
 use crate::ipc::server::Responder;
 use crate::state::LocalState;
@@ -34,6 +34,13 @@ pub enum PeerRequest {
         id: DeviceId,
         reply: Responder<()>,
     },
+    TrustComputer {
+        key: [u8; 32],
+        name: String,
+        address: String,
+        reply: Responder<DeviceId>,
+    },
+    LocalIdentity(Responder<LocalIdentity>),
     SendFile {
         id: DeviceId,
         path: String,
@@ -226,6 +233,8 @@ impl PeerRequest {
             | Self::RingDevice { reply, .. }
             | Self::StopRinging { reply, .. }
             | Self::OpenOnDevice { reply, .. } => reply.fail(reason),
+            Self::TrustComputer { reply, .. } => reply.fail(reason),
+            Self::LocalIdentity(reply) => reply.fail(reason),
             Self::Conversations { reply, .. } => reply.fail(reason),
             Self::Messages { reply, .. } => reply.fail(reason),
             Self::SendMessage { reply, .. } => reply.fail(reason),
@@ -262,6 +271,8 @@ impl PeerRequest {
             | Self::PairWithQr { .. }
             | Self::PairingConfirm { .. }
             | Self::Forget { .. }
+            | Self::TrustComputer { .. }
+            | Self::LocalIdentity(_)
             | Self::SendFile { .. }
             | Self::StartMirror { .. }
             | Self::StartCamera { .. }
