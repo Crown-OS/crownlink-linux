@@ -108,49 +108,80 @@ impl RingAllocator {
         })
     }
 
+    /// A compressed layout can carry auxiliary planes the format does not account for, which
+    /// neither the encoder nor a peer can import; such a modifier is dropped and the next one
+    /// tried, down to the plain layouts every driver has.
     fn allocate_buffer(
         &self,
         layout: &ChosenLayout,
-        (width, height): (u32, u32),
+        size: (u32, u32),
     ) -> Result<RingBuffer, WaylandError> {
         let format = Format::try_from(layout.fourcc.code())
             .map_err(|_| WaylandError::Allocation("unknown fourcc".into()))?;
+        let mut modifiers = layout.modifiers.clone();
+        loop {
+            let (object, modifier) = self.allocate_object(format, size, &modifiers)?;
+            if object.plane_count() as usize == layout.fourcc.plane_count() {
+                return ring_buffer(&object, layout.fourcc, modifier, size);
+            }
+            modifiers.retain(|candidate| *candidate != modifier);
+            if modifiers.is_empty() {
+                return Err(WaylandError::Allocation(
+                    "every layout the GPU offers carries auxiliary planes".into(),
+                ));
+            }
+            tracing::debug!(modifier, "skipping a layout with auxiliary planes");
+        }
+    }
+
+    fn allocate_object(
+        &self,
+        format: Format,
+        (width, height): (u32, u32),
+        modifiers: &[u64],
+    ) -> Result<(BufferObject<()>, u64), WaylandError> {
         let usage = BufferObjectFlags::RENDERING;
-        let object: BufferObject<()> = if layout.modifiers.is_empty() {
-            self.device
-                .create_buffer_object(width, height, format, usage)?
-        } else {
-            self.device.create_buffer_object_with_modifiers2(
-                width,
-                height,
-                format,
-                layout.modifiers.iter().copied().map(Modifier::from),
-                usage,
-            )?
-        };
-        let fd = object
-            .fd()
-            .map_err(|error| WaylandError::Allocation(error.to_string()))?;
-        let planes = (0..i32::try_from(object.plane_count()).unwrap_or(0))
-            .map(|plane| PlaneLayout {
-                offset: object.offset(plane),
-                pitch: object.stride_for_plane(plane),
-            })
-            .collect();
-        let modifier = if layout.modifiers.is_empty() {
-            IMPLICIT_MODIFIER
-        } else {
-            u64::from(object.modifier())
-        };
-        Ok(RingBuffer {
-            fd,
-            fourcc: layout.fourcc,
-            modifier,
+        if modifiers.is_empty() {
+            let object = self
+                .device
+                .create_buffer_object(width, height, format, usage)?;
+            return Ok((object, IMPLICIT_MODIFIER));
+        }
+        let object = self.device.create_buffer_object_with_modifiers2(
             width,
             height,
-            planes,
-        })
+            format,
+            modifiers.iter().copied().map(Modifier::from),
+            usage,
+        )?;
+        let modifier = u64::from(object.modifier());
+        Ok((object, modifier))
     }
+}
+
+fn ring_buffer(
+    object: &BufferObject<()>,
+    fourcc: DrmFourcc,
+    modifier: u64,
+    (width, height): (u32, u32),
+) -> Result<RingBuffer, WaylandError> {
+    let fd = object
+        .fd()
+        .map_err(|error| WaylandError::Allocation(error.to_string()))?;
+    let planes = (0..i32::try_from(object.plane_count()).unwrap_or(0))
+        .map(|plane| PlaneLayout {
+            offset: object.offset(plane),
+            pitch: object.stride_for_plane(plane),
+        })
+        .collect();
+    Ok(RingBuffer {
+        fd,
+        fourcc,
+        modifier,
+        width,
+        height,
+        planes,
+    })
 }
 
 fn first_render_node() -> Result<PathBuf, WaylandError> {
