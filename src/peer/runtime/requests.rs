@@ -12,7 +12,7 @@ use super::calls::CallControl;
 use super::event_loop::PeerLoop;
 use crate::discovery::{AddressHint, PresenceEvent};
 use crate::features::files::{start_ffsp_send, FfspSend};
-use crate::ipc::proto::{self as ipc, FeatureSet, LocalIdentity};
+use crate::ipc::proto::{self as ipc, LocalIdentity};
 use crate::ipc::server::Responder;
 use crate::peer::convert::{
     ipc_id, signaling_feature, signaling_id, start_audio, start_camera, start_cast, start_mirror,
@@ -81,7 +81,10 @@ impl PeerLoop {
             addresses: &[address],
         });
         match outcome {
-            Ok(()) => reply.reply(id),
+            Ok(()) => {
+                self.sync_devices();
+                reply.reply(id);
+            }
             Err(reason) => reply.fail(reason),
         }
     }
@@ -288,9 +291,11 @@ impl PeerLoop {
                 conversation_id,
                 text,
             } => self.send_reply(&conversation_id, &text),
-            PeerNotice::FeaturesChanged { id, features } => {
-                self.set_features(signaling_id(id), features)
-            }
+            PeerNotice::FeatureChanged {
+                id,
+                feature,
+                enabled,
+            } => self.set_feature(signaling_id(id), feature, enabled),
             PeerNotice::CancelCapture(capture) => {
                 Err(format!("there is no capture {capture} to cancel"))
             }
@@ -350,24 +355,20 @@ impl PeerLoop {
         )
     }
 
-    fn set_features(&mut self, peer: DeviceId, features: FeatureSet) -> Result<(), String> {
-        let enabled = self
-            .node
-            .device(&peer)
-            .map(|device| device.enabled)
-            .ok_or_else(|| format!("{peer} is not paired"))?;
-        crate::ipc::proto::Feature::ALL
-            .into_iter()
-            .filter(|feature| {
-                features.contains(*feature) != enabled.contains(signaling_feature(*feature))
-            })
-            .try_for_each(|feature| {
-                self.run_app(AppCommand::SetFeature {
-                    peer,
-                    feature: signaling_feature(feature),
-                    enabled: features.contains(feature),
-                })
-            })
+    fn set_feature(
+        &mut self,
+        peer: DeviceId,
+        feature: ipc::Feature,
+        enabled: bool,
+    ) -> Result<(), String> {
+        if self.node.device(&peer).is_none() {
+            return Err(format!("{peer} is not paired"));
+        }
+        self.run_app(AppCommand::SetFeature {
+            peer,
+            feature: signaling_feature(feature),
+            enabled,
+        })
     }
 
     fn on_presence(&mut self, presence: &PresenceEvent) {

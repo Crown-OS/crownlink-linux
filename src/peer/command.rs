@@ -4,7 +4,7 @@ use crate::bluetooth::telephony::PhoneCalls;
 use crate::discovery::PresenceEvent;
 use crate::ipc::proto::{
     AudioOptions, BlobFile, CallLogPage, CameraOptions, CaptureRequest, CastOptions, ContactPage,
-    ConversationPage, DeviceId, DeviceLocation, Edge, Feature, FeatureSet, FocusInfo, HeadsetOwner,
+    ConversationPage, DeviceId, DeviceLocation, Edge, Feature, FocusInfo, HeadsetOwner,
     LocalIdentity, MessageDraft, MessagePage, MirrorOptions, MonitorMode, MonitorOptions,
     PageRequest, PairingOffer, VoicemailPage,
 };
@@ -313,10 +313,12 @@ pub enum PeerNotice {
         conversation_id: String,
         text: String,
     },
-    /// The user changed what a device may use; the runtime persists and enforces it.
-    FeaturesChanged {
+    /// The user allowed or forbade one feature for a device; the runtime persists and
+    /// enforces it.
+    FeatureChanged {
         id: DeviceId,
-        features: FeatureSet,
+        feature: Feature,
+        enabled: bool,
     },
     CancelCapture(u32),
     StopLocalRing,

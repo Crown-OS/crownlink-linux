@@ -246,7 +246,7 @@ fn the_server_caches_runtime_events_and_routes_requests_to_the_runtime() {
     assert!(received.contains(&PeerNotice::PairingCancel));
     assert!(received.iter().any(|notice| matches!(
         notice,
-        PeerNotice::FeaturesChanged { id, features } if *id == PHONE && features.contains(Feature::Camera)
+        PeerNotice::FeatureChanged { id, feature: Feature::Camera, enabled: true } if *id == PHONE
     )));
 
     drop(daemon.events);

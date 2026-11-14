@@ -41,12 +41,13 @@ pub(super) fn route(
                 .state
                 .set_feature(args.id, args.feature, args.enabled)
             {
-                Ok((features, event)) => {
+                Ok((_, event)) => {
                     call.reply(server, encode(&()));
                     let _ = event.emit(server);
-                    router.notify(PeerNotice::FeaturesChanged {
+                    router.notify(PeerNotice::FeatureChanged {
                         id: args.id,
-                        features,
+                        feature: args.feature,
+                        enabled: args.enabled,
                     });
                 }
                 Err(error) => call.reply(server, Err(error)),
