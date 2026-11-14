@@ -125,6 +125,24 @@ impl PeerLoop {
                     tracing::warn!(reason, "cannot hand the cursor over");
                 }
             }
+            MediaOutput::ViewerResized {
+                peer,
+                width,
+                height,
+            } => {
+                tracing::debug!(%peer, width, height, "the viewer was resized");
+                self.announce(DaemonEvent::ViewerResized {
+                    id: ipc_id(peer),
+                    width,
+                    height,
+                });
+            }
+            MediaOutput::MonitorTitle { peer, title } => {
+                self.announce(DaemonEvent::MonitorTitle {
+                    id: ipc_id(peer),
+                    title,
+                });
+            }
             MediaOutput::Failed {
                 peer,
                 feature,

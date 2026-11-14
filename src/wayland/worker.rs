@@ -4,6 +4,7 @@ use std::thread::JoinHandle;
 
 use rustix::event::{eventfd, poll, EventfdFlags, PollFd, PollFlags};
 use tokio::sync::oneshot;
+use wayland_client::backend::WaylandError as BackendError;
 use wayland_client::globals::{registry_queue_init, GlobalList, GlobalListContents};
 use wayland_client::protocol::wl_registry::WlRegistry;
 use wayland_client::{Connection, Dispatch, EventQueue, QueueHandle};
@@ -157,9 +158,9 @@ fn wait<S: WorkerState>(
     state: &mut S,
     wake: &OwnedFd,
 ) -> Result<(), WaylandError> {
-    queue.flush()?;
+    flush(queue)?;
     queue.dispatch_pending(state)?;
-    queue.flush()?;
+    flush(queue)?;
     let Some(guard) = queue.prepare_read() else {
         return Ok(());
     };
@@ -180,10 +181,24 @@ fn wait<S: WorkerState>(
         let _ = rustix::io::read(wake, &mut [0_u8; 8]);
     }
     if wayland_ready {
-        guard.read()?;
+        empty_if_would_block(guard.read().map(drop))?;
     } else {
         drop(guard);
     }
     queue.dispatch_pending(state)?;
     Ok(())
+}
+
+/// A full socket buffer only means the compositor is busy: the rest goes out on the next flush.
+fn flush<S>(queue: &EventQueue<S>) -> Result<(), WaylandError> {
+    empty_if_would_block(queue.flush())
+}
+
+/// Readiness that turns out to carry no complete message, or a send buffer that is full for
+/// now, is not a broken connection.
+fn empty_if_would_block(outcome: Result<(), BackendError>) -> Result<(), WaylandError> {
+    match outcome {
+        Err(BackendError::Io(error)) if error.kind() == std::io::ErrorKind::WouldBlock => Ok(()),
+        outcome => Ok(outcome?),
+    }
 }

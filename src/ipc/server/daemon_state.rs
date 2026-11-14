@@ -62,6 +62,15 @@ pub enum DaemonEvent {
         feature: Feature,
         reason: String,
     },
+    ViewerResized {
+        id: DeviceId,
+        width: u16,
+        height: u16,
+    },
+    MonitorTitle {
+        id: DeviceId,
+        title: String,
+    },
     StateUpdate {
         owner: DeviceId,
         update: OwnedUpdate,
@@ -283,6 +292,18 @@ impl DaemonState {
                 feature,
                 reason,
             })],
+            DaemonEvent::ViewerResized { id, width, height } => {
+                vec![OutgoingEvent::ViewerResized(proto::ViewerResized {
+                    id,
+                    width,
+                    height,
+                })]
+            }
+            DaemonEvent::MonitorTitle { id, title } => {
+                vec![OutgoingEvent::MonitorTitleChanged(
+                    proto::MonitorTitleChanged { id, title },
+                )]
+            }
             DaemonEvent::Call { id, call } => {
                 vec![OutgoingEvent::CallStateChanged(proto::CallStateChanged {
                     id,

@@ -13,6 +13,7 @@ use crate::media::video::{
     EncoderConfig, HardwareCapabilities, Nv12Image, RateControl, VaapiDevice, VideoEncoder,
 };
 use crate::peer::EncodedFrame;
+use crate::wayland::virtual_output::VirtualOutputMode;
 
 /// How long an encoder pipeline waits for a frame before looking at its controls again.
 const FRAME_WAIT: Duration = Duration::from_millis(20);
@@ -38,6 +39,20 @@ pub trait FrameSource: Send {
     fn set_target_bitrate(&mut self, bits_per_second: u32);
 
     fn request_keyframe(&mut self);
+
+    /// Changes the mode of the output being captured, when this source owns one.
+    ///
+    /// # Errors
+    ///
+    /// Fails when the output rejects the mode or is gone.
+    fn set_output_mode(&mut self, _mode: VirtualOutputMode) -> Result<(), FeatureError> {
+        Ok(())
+    }
+
+    /// The title of the window in front on the captured output, once it changed.
+    fn take_title(&mut self) -> Option<String> {
+        None
+    }
 
     /// The output being captured by name, for input aimed at it.
     fn output_name(&self) -> Option<&str> {
@@ -77,7 +92,11 @@ pub(crate) fn run_encoder(
                     source.request_keyframe();
                     None
                 }
-                Control::Frame(_) | Control::UnicursorLeave(_) => None,
+                Control::OutputMode(mode) => {
+                    source.set_output_mode(mode)?;
+                    None
+                }
+                Control::Frame(_) | Control::UnicursorLeave(_) | Control::Title(_) => None,
             };
             if let Some(bits) = bitrate {
                 source.set_target_bitrate(bits);
@@ -87,6 +106,9 @@ pub(crate) fn run_encoder(
             && !context.send_frame(frame)
         {
             source.request_keyframe();
+        }
+        if let Some(title) = source.take_title() {
+            context.send_monitor_title(title);
         }
     }
 }

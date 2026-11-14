@@ -24,6 +24,15 @@ pub trait VideoSink: Send {
     /// Fails when the sink can take no more frames, which ends the feature.
     fn present(&mut self, frame: &ReceivedFrame<'_>) -> Result<(), FeatureError>;
 
+    /// Retitles the window the frames are shown in, when there is one.
+    ///
+    /// # Errors
+    ///
+    /// Fails once the sink is gone for good.
+    fn set_title(&mut self, _title: &str) -> Result<(), FeatureError> {
+        Ok(())
+    }
+
     /// Checked between frames; an error ends the feature, as when the viewer was closed.
     ///
     /// # Errors
@@ -64,6 +73,7 @@ pub(crate) fn run_decoder(
                 timestamp: frame.timestamp().ticks(),
                 keyframe: frame.is_keyframe(),
             })?,
+            Ok(Some(Control::Title(title))) => sink.set_title(&title)?,
             Ok(_) => {}
             Err(Stopped) => return Ok(()),
         }

@@ -10,7 +10,7 @@ use std::os::fd::AsFd;
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
-use crownlink_linux::media::present::access_unit::{Fill, UnitReader};
+use crownlink_linux::media::present::access_unit::{Fill, UnitKind, UnitReader};
 use crownlink_linux::media::present::input::write_message;
 use crownlink_linux::media::present::{PresentationStats, Presenter};
 use crownlink_linux::media::video::{VaapiDevice, VideoCodec, VideoDecoder};
@@ -110,6 +110,10 @@ fn main() -> Result<()> {
                 stream_ended = Some(Instant::now());
             }
             while let Some((header, unit)) = reader.next_unit()? {
+                if header.kind == UnitKind::Title {
+                    presenter.set_title(&String::from_utf8_lossy(unit));
+                    continue;
+                }
                 let received = Instant::now();
                 decoder.decode(unit, header.pts)?;
                 while let Some(frame) = decoder.next_frame()? {

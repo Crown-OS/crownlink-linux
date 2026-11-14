@@ -24,6 +24,8 @@ pub(crate) enum OutgoingEvent {
     LiveActivitiesChanged(proto::LiveActivitiesChanged),
     WifiReceived(proto::WifiReceived),
     LocalRingChanged(proto::LocalRingChanged),
+    ViewerResized(proto::ViewerResized),
+    MonitorTitleChanged(proto::MonitorTitleChanged),
 }
 
 impl OutgoingEvent {
@@ -48,6 +50,8 @@ impl OutgoingEvent {
             Self::LiveActivitiesChanged(event) => server.emit(event),
             Self::WifiReceived(event) => server.emit(event),
             Self::LocalRingChanged(event) => server.emit(event),
+            Self::ViewerResized(event) => server.emit(event),
+            Self::MonitorTitleChanged(event) => server.emit(event),
         }
     }
 }

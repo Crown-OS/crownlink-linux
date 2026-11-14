@@ -5,8 +5,8 @@ use crate::discovery::PresenceEvent;
 use crate::ipc::proto::{
     AudioOptions, BlobFile, CallLogPage, CameraOptions, CaptureRequest, CastOptions, ContactPage,
     ConversationPage, DeviceId, DeviceLocation, Edge, Feature, FeatureSet, FocusInfo, HeadsetOwner,
-    LocalIdentity, MessageDraft, MessagePage, MirrorOptions, MonitorOptions, PageRequest,
-    PairingOffer, VoicemailPage,
+    LocalIdentity, MessageDraft, MessagePage, MirrorOptions, MonitorMode, MonitorOptions,
+    PageRequest, PairingOffer, VoicemailPage,
 };
 use crate::ipc::server::Responder;
 use crate::state::LocalState;
@@ -73,6 +73,16 @@ pub enum PeerRequest {
     SetUnicursorEdge {
         id: DeviceId,
         edge: Edge,
+        reply: Responder<()>,
+    },
+    SetMonitorMode {
+        id: DeviceId,
+        mode: MonitorMode,
+        reply: Responder<()>,
+    },
+    SetViewerTitle {
+        id: DeviceId,
+        title: String,
         reply: Responder<()>,
     },
     PickupCall {
@@ -217,6 +227,8 @@ impl PeerRequest {
             | Self::StartMonitor { reply, .. }
             | Self::Stop { reply, .. }
             | Self::SetUnicursorEdge { reply, .. }
+            | Self::SetMonitorMode { reply, .. }
+            | Self::SetViewerTitle { reply, .. }
             | Self::PickupCall { reply, .. }
             | Self::DeclineCall { reply, .. }
             | Self::HangupCall { reply, .. }
@@ -280,6 +292,8 @@ impl PeerRequest {
             | Self::StartMonitor { .. }
             | Self::Stop { .. }
             | Self::SetUnicursorEdge { .. }
+            | Self::SetMonitorMode { .. }
+            | Self::SetViewerTitle { .. }
             | Self::PickupCall { .. }
             | Self::DeclineCall { .. }
             | Self::HangupCall { .. }

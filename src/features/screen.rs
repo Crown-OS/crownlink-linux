@@ -44,10 +44,20 @@ struct PacedOutput {
     output: VirtualOutput,
     events: Receiver<VirtualOutputEvent>,
     name: String,
+    /// The front window's title, once it changed and until it is passed on.
+    title: Option<String>,
+    /// The output's frame clock only ticks when asked, and an unchanged output answers a tick
+    /// with no frame; so while nothing is in flight it is asked once per frame interval.
+    interval: Duration,
+    last_request: Instant,
 }
 
 impl PacedOutput {
-    fn create(name: &str, mode: VirtualOutputMode) -> Result<Self, FeatureError> {
+    fn create(
+        name: &str,
+        mode: VirtualOutputMode,
+        frames_per_second: u32,
+    ) -> Result<Self, FeatureError> {
         let (sender, events) = sync_channel(OUTPUT_EVENT_DEPTH);
         let output = VirtualOutput::create(name, mode, channel_outlet(sender))?;
         match events.recv_timeout(OUTPUT_CREATION_TIMEOUT) {
@@ -55,17 +65,39 @@ impl PacedOutput {
                 output,
                 events,
                 name,
+                title: None,
+                interval: Duration::from_secs(1) / frames_per_second.max(1),
+                last_request: Instant::now(),
             }),
             Ok(VirtualOutputEvent::Closed(cause)) => Err(FeatureError::OutputClosed(cause)),
-            Err(_) => Err(FeatureError::OutputTimedOut),
+            Ok(VirtualOutputEvent::Titled(_)) | Err(_) => Err(FeatureError::OutputTimedOut),
         }
     }
 
-    fn check(&self) -> Result<(), FeatureError> {
-        match self.events.try_recv() {
-            Ok(VirtualOutputEvent::Closed(cause)) => Err(FeatureError::OutputClosed(cause)),
-            Ok(VirtualOutputEvent::Created { .. }) | Err(TryRecvError::Empty) => Ok(()),
-            Err(TryRecvError::Disconnected) => Err(FeatureError::OutputTimedOut),
+    fn request_frame(&mut self) -> Result<(), FeatureError> {
+        self.last_request = Instant::now();
+        Ok(self.output.request_frame()?)
+    }
+
+    /// Ticks the frame clock again once an interval passed without a frame to show for it.
+    fn keep_ticking(&mut self) -> Result<(), FeatureError> {
+        if self.last_request.elapsed() >= self.interval {
+            self.request_frame()?;
+        }
+        Ok(())
+    }
+
+    fn check(&mut self) -> Result<(), FeatureError> {
+        loop {
+            match self.events.try_recv() {
+                Ok(VirtualOutputEvent::Closed(cause)) => {
+                    return Err(FeatureError::OutputClosed(cause))
+                }
+                Ok(VirtualOutputEvent::Titled(title)) => self.title = Some(title),
+                Ok(VirtualOutputEvent::Created { .. }) => {}
+                Err(TryRecvError::Empty) => return Ok(()),
+                Err(TryRecvError::Disconnected) => return Err(FeatureError::OutputTimedOut),
+            }
         }
     }
 }
@@ -91,11 +123,13 @@ impl ScreenSource {
         let device = VaapiDevice::open_default()?;
         let capabilities = HardwareCapabilities::probe(&device)?;
         let profile = encode_profile(params.codec, &capabilities)?;
-        let paced = match target {
-            CaptureTarget::PrimaryOutput => None,
-            CaptureTarget::VirtualOutput { name, mode } => Some(PacedOutput::create(&name, mode)?),
-        };
         let frames_per_second = frame_rate(params);
+        let mut paced = match target {
+            CaptureTarget::PrimaryOutput => None,
+            CaptureTarget::VirtualOutput { name, mode } => {
+                Some(PacedOutput::create(&name, mode, frames_per_second)?)
+            }
+        };
         let (sender, events) = sync_channel(SCREEN_EVENT_DEPTH);
         let screencast = Screencast::start(
             ScreencastOptions {
@@ -106,8 +140,8 @@ impl ScreenSource {
             },
             channel_outlet(sender),
         )?;
-        if let Some(paced) = &paced {
-            paced.output.request_frame()?;
+        if let Some(paced) = &mut paced {
+            paced.request_frame()?;
         }
         Ok(Self {
             device,
@@ -186,10 +220,10 @@ impl ScreenSource {
                 self.screencast.release(done)?;
             }
         }
-        if let Some(paced) = &self.paced
+        if let Some(paced) = &mut self.paced
             && !self.ready.is_empty()
         {
-            paced.output.request_frame()?;
+            paced.request_frame()?;
         }
         Ok(())
     }
@@ -197,8 +231,11 @@ impl ScreenSource {
 
 impl FrameSource for ScreenSource {
     fn next_frame(&mut self, timeout: Duration) -> Result<Option<EncodedFrame>, FeatureError> {
-        if let Some(paced) = &self.paced {
+        if let Some(paced) = &mut self.paced {
             paced.check()?;
+            if self.in_flight.is_empty() {
+                paced.keep_ticking()?;
+            }
         }
         let deadline = Instant::now() + timeout;
         loop {
@@ -232,13 +269,25 @@ impl FrameSource for ScreenSource {
         if let Some(encoder) = &mut self.encoder {
             encoder.request_keyframe();
         }
-        let refreshed = match &self.paced {
-            Some(paced) => paced.output.request_frame(),
-            None => self.screencast.force_frame(),
+        let refreshed = match &mut self.paced {
+            Some(paced) => paced.request_frame(),
+            None => self.screencast.force_frame().map_err(FeatureError::from),
         };
         if let Err(error) = refreshed {
             tracing::debug!(%error, "cannot ask for a fresh frame");
         }
+    }
+
+    fn set_output_mode(&mut self, mode: VirtualOutputMode) -> Result<(), FeatureError> {
+        if let Some(paced) = &mut self.paced {
+            paced.output.set_mode(mode)?;
+            paced.request_frame()?;
+        }
+        Ok(())
+    }
+
+    fn take_title(&mut self) -> Option<String> {
+        self.paced.as_mut().and_then(|paced| paced.title.take())
     }
 
     fn output_name(&self) -> Option<&str> {

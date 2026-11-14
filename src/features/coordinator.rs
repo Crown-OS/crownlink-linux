@@ -2,6 +2,7 @@
 //! (and per shared cursor), frames and rate changes routed to them, their output queued for the
 //! runtime to put on the wire.
 
+use std::collections::HashMap;
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -17,8 +18,9 @@ use super::input_route::{connect_injector, InputOwner, InputRoutes, SharedInject
 use super::pipeline::{Control, Outlet, PipelineContext, PipelineHandle, PipelineSpec};
 use super::platform::{InputForwarder, MediaPlatform, MirrorWindow};
 use super::{camera, mic, mirror, monitor, unicursor, FeatureError};
-use crate::ipc::proto::Edge;
+use crate::ipc::proto::{Edge, MonitorMode};
 use crate::peer::{MediaCoordinator, MediaOutput, RuntimeWaker, UnicursorSignal};
+use crate::wayland::virtual_output::VirtualOutputMode;
 
 /// Room for a few frames of every stream while the runtime thread catches up.
 const OUTPUT_QUEUE_DEPTH: usize = 256;
@@ -36,6 +38,8 @@ pub struct FeatureCoordinator {
     /// Stopped pipelines whose threads are still winding down.
     retired: Vec<JoinHandle<()>>,
     input: InputRoutes,
+    /// The mode each peer's monitor was last asked for, over the one it was started with.
+    monitor_modes: HashMap<DeviceId, VirtualOutputMode>,
 }
 
 fn stream_ref(key: StreamKey) -> Option<StreamRef> {
@@ -64,6 +68,7 @@ impl FeatureCoordinator {
             pipelines: Vec::new(),
             retired: Vec::new(),
             input: InputRoutes::default(),
+            monitor_modes: HashMap::new(),
         }
     }
 
@@ -136,14 +141,19 @@ impl FeatureCoordinator {
                     }),
                 )
             }
-            (FeatureRequest::Monitor(mode), MediaRole::Encoder, StreamParams::Video(video)) => {
+            (FeatureRequest::Monitor(monitor), MediaRole::Encoder, StreamParams::Video(video)) => {
+                let mode = self
+                    .monitor_modes
+                    .get(&peer)
+                    .copied()
+                    .unwrap_or_else(|| monitor::output_mode(&monitor));
                 let injector = SharedInjector::default();
                 self.input
                     .add(peer, InputOwner::Monitor, Arc::clone(&injector));
                 (
                     spec("crownlink-monitor"),
                     Box::new(move |context| {
-                        monitor::extend_desktop(context, &*platform, &video, &mode, &injector)
+                        monitor::extend_desktop(context, &*platform, &video, mode, &injector)
                     }),
                 )
             }
@@ -260,6 +270,9 @@ impl MediaCoordinator for FeatureCoordinator {
             } => {
                 tracing::info!(%peer, ?feature, ?stream, "stopping a pipeline");
                 self.stop(peer, feature, Some(stream));
+                if feature == Feature::Monitor {
+                    self.monitor_modes.remove(&peer);
+                }
             }
         }
     }
@@ -330,6 +343,38 @@ impl MediaCoordinator for FeatureCoordinator {
             },
             Box::new(move |context| unicursor::run_capture(context, &*platform, edge)),
         );
+        Ok(())
+    }
+
+    fn set_viewer_title(&mut self, peer: DeviceId, title: String) -> Result<(), String> {
+        let screens = self.pipelines.iter().filter(|pipeline| {
+            pipeline.peer == peer && matches!(pipeline.feature, Feature::Mirror | Feature::Monitor)
+        });
+        let mut delivered = false;
+        for screen in screens {
+            delivered |= screen.send(Control::Title(title.clone()));
+        }
+        if delivered {
+            Ok(())
+        } else {
+            Err(format!("no window shows {peer}'s screen"))
+        }
+    }
+
+    fn set_monitor_mode(&mut self, peer: DeviceId, mode: MonitorMode) -> Result<(), String> {
+        let mode = VirtualOutputMode {
+            width: u32::from(mode.width),
+            height: u32::from(mode.height),
+            refresh_mhz: mode.refresh_mhz,
+            scale_120: u32::from(mode.scale_120),
+        };
+        if !mode.is_valid() {
+            return Err(format!("{mode:?} is outside what a virtual output can be"));
+        }
+        self.monitor_modes.insert(peer, mode);
+        if let Some(pipeline) = self.pipeline(peer, Some(Feature::Monitor), None) {
+            pipeline.send(Control::OutputMode(mode));
+        }
         Ok(())
     }
 

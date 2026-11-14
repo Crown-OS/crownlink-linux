@@ -49,6 +49,11 @@ crownos_ipc::protocol! {
         /// Hand the pointer and keyboard to a device when the cursor crosses
         /// `edge` of this computer's desktop.
         fn set_unicursor_edge(id: DeviceId, edge: Edge);
+        /// Give the virtual output a device shows as a monitor this mode, now if it is
+        /// streaming and from its start otherwise.
+        fn set_monitor_mode(id: DeviceId, mode: MonitorMode);
+        /// Retitle the window this computer shows a device's screen or monitor in.
+        fn set_viewer_title(id: DeviceId, title: String);
 
         /// Answer an incoming call.
         fn pickup_call(call_id: String);
@@ -202,6 +207,10 @@ crownos_ipc::protocol! {
         event WifiReceived { id: DeviceId, ssid: String };
         /// A device started or stopped ringing this computer.
         event LocalRingChanged { by: Option<DeviceId> };
+        /// The window showing a device's screen or monitor was resized to this logical size.
+        event ViewerResized { id: DeviceId, width: u16, height: u16 };
+        /// The window on the monitor a device shows changed its title.
+        event MonitorTitleChanged { id: DeviceId, title: String };
     }
 }
 

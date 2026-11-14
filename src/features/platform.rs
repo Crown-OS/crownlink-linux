@@ -39,6 +39,14 @@ impl InputForwarder {
         });
     }
 
+    pub fn send_window_size(&self, width: u16, height: u16) {
+        self.outlet.send(MediaOutput::ViewerResized {
+            peer: self.peer,
+            width,
+            height,
+        });
+    }
+
     pub fn send_key_state(&self, keys: Vec<u8>) {
         self.outlet.send(MediaOutput::KeyState {
             peer: self.peer,

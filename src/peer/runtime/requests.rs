@@ -183,6 +183,20 @@ impl PeerLoop {
                 };
                 Self::respond(reply, outcome);
             }
+            PeerRequest::SetMonitorMode { id, mode, reply } => {
+                let outcome = self
+                    .streams
+                    .coordinator()
+                    .set_monitor_mode(signaling_id(id), mode);
+                Self::respond(reply, outcome);
+            }
+            PeerRequest::SetViewerTitle { id, title, reply } => {
+                let outcome = self
+                    .streams
+                    .coordinator()
+                    .set_viewer_title(signaling_id(id), title);
+                Self::respond(reply, outcome);
+            }
             PeerRequest::PickupCall { call_id, reply } => {
                 self.control_call(CallControl::Pickup, &call_id, reply);
             }

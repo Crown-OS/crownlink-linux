@@ -51,6 +51,8 @@ pub enum VirtualOutputEvent {
         name: String,
     },
     Closed(OutputCloseCause),
+    /// The window in front on the output is called this; empty for none.
+    Titled(String),
 }
 
 /// Whether the compositor accepts `name`: 1 to 32 characters from `[A-Za-z0-9_-]`.
@@ -132,7 +134,7 @@ impl OutputState {
         mode: VirtualOutputMode,
         events: EventOutlet<VirtualOutputEvent>,
     ) -> Result<Self, WaylandError> {
-        let manager: CrownosVirtualOutputManagerV1 = globals.bind(queue, 1..=1, ())?;
+        let manager: CrownosVirtualOutputManagerV1 = globals.bind(queue, 1..=2, ())?;
         let output = manager.create_output(
             name,
             dimension(mode.width),
@@ -205,6 +207,7 @@ impl Dispatch<CrownosVirtualOutputV1, ()> for OutputState {
                 state.closed = true;
                 VirtualOutputEvent::Closed(close_cause(reason))
             }
+            crownos_virtual_output_v1::Event::Title { title } => VirtualOutputEvent::Titled(title),
             _ => return,
         };
         let _ = (state.events)(event);

@@ -13,7 +13,7 @@ use super::input_wire::{BatchWriter, PressedKeys};
 use super::platform::InputForwarder;
 use super::sink::{ReceivedFrame, VideoSink};
 use super::FeatureError;
-use crate::media::present::access_unit::UnitHeader;
+use crate::media::present::access_unit::{write_title, UnitHeader, UnitKind};
 use crate::media::present::input::{read_message, InputEvent};
 
 const VIEWER_BINARY: &str = "crownlink-viewer";
@@ -77,7 +77,7 @@ impl VideoSink for ViewerSink {
             len: u32::try_from(frame.bytes.len())
                 .map_err(|_| FeatureError::Unsupported("a frame over 4 GiB"))?,
             pts: i64::from(frame.timestamp),
-            keyframe: frame.keyframe,
+            kind: UnitKind::picture(frame.keyframe),
         };
         self.stdin
             .write_all(&header.encode())
@@ -86,6 +86,13 @@ impl VideoSink for ViewerSink {
                 ErrorKind::BrokenPipe => FeatureError::ViewerClosed,
                 _ => FeatureError::Io(error),
             })
+    }
+
+    fn set_title(&mut self, title: &str) -> Result<(), FeatureError> {
+        write_title(&mut self.stdin, title).map_err(|error| match error.kind() {
+            ErrorKind::BrokenPipe => FeatureError::ViewerClosed,
+            _ => FeatureError::Io(error),
+        })
     }
 
     fn check(&mut self) -> Result<(), FeatureError> {
@@ -113,6 +120,10 @@ fn forward_input(stdout: ChildStdout, forwarder: &InputForwarder) {
     let mut batch = BatchWriter::default();
     let mut keys = PressedKeys::default();
     while let Ok(Some(message)) = read_message(&mut reader) {
+        if let InputEvent::WindowSize { width, height } = message.event {
+            forwarder.send_window_size(width, height);
+            continue;
+        }
         let (flush, keys_changed) = match message.event {
             InputEvent::Key { code, pressed } => (true, keys.note(code, pressed)),
             InputEvent::Frame => (true, false),

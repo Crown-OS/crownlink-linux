@@ -107,7 +107,7 @@ pub(crate) fn injected(event: InputEvent) -> Option<InjectedEvent> {
         },
         InputEvent::TouchUp { id } => InjectedEvent::TouchUp { id },
         InputEvent::TouchCancel => InjectedEvent::TouchCancel,
-        InputEvent::Frame => return None,
+        InputEvent::Frame | InputEvent::WindowSize { .. } => return None,
     })
 }
 

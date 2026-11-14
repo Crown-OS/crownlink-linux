@@ -14,6 +14,7 @@ use llts_signaling::message::{StreamRef, UnicursorLeave};
 use super::FeatureError;
 use crate::peer::{EncodedFrame, MediaOutput, RuntimeWaker, UnicursorSignal};
 use crate::util::error_chain::error_chain;
+use crate::wayland::virtual_output::VirtualOutputMode;
 
 /// Frames waiting for a decoder beyond this are dropped rather than queued, so latency stays
 /// bounded when a decoder falls behind.
@@ -27,6 +28,8 @@ pub(crate) enum Control {
     FrameByteBudget(u32),
     Keyframe,
     UnicursorLeave(UnicursorLeave),
+    OutputMode(VirtualOutputMode),
+    Title(String),
 }
 
 /// Where pipelines hand their output to the runtime thread, waking it.
@@ -114,6 +117,13 @@ impl PipelineContext {
         self.outlet.send(MediaOutput::KeyState {
             peer: self.peer,
             keys,
+        });
+    }
+
+    pub(crate) fn send_monitor_title(&self, title: String) {
+        self.outlet.send(MediaOutput::MonitorTitle {
+            peer: self.peer,
+            title,
         });
     }
 

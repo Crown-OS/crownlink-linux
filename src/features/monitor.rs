@@ -43,12 +43,12 @@ pub(crate) fn extend_desktop(
     context: &PipelineContext,
     platform: &dyn MediaPlatform,
     params: &VideoParams,
-    monitor: &StartMonitor,
+    mode: VirtualOutputMode,
     input: &SharedInjector,
 ) -> Result<(), FeatureError> {
     let target = CaptureTarget::VirtualOutput {
         name: output_name(&context.peer),
-        mode: output_mode(monitor),
+        mode,
     };
     let mut source = platform.screen_source(target, params)?;
     if let Some(name) = source.output_name() {

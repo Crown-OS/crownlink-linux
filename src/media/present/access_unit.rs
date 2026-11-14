@@ -2,18 +2,53 @@ use std::io::{self, Read, Write};
 
 use crate::media::video::EncodedUnit;
 
-/// `[len: u32 LE][pts: i64 LE][flags: u8]` before each access unit on the viewer's stdin.
+/// `[len: u32 LE][pts: i64 LE][flags: u8]` before each record on the viewer's stdin: an access
+/// unit, or the UTF-8 title the window should carry.
 pub const HEADER_BYTES: usize = 13;
 /// Access units larger than this are treated as a corrupt stream rather than buffered.
 pub const MAX_UNIT_BYTES: usize = 16 << 20;
 const KEYFRAME_FLAG: u8 = 1;
+const TITLE_FLAG: u8 = 2;
 const READ_CHUNK: usize = 64 << 10;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnitKind {
+    Delta,
+    Keyframe,
+    Title,
+}
+
+impl UnitKind {
+    pub const fn picture(keyframe: bool) -> Self {
+        if keyframe {
+            Self::Keyframe
+        } else {
+            Self::Delta
+        }
+    }
+
+    const fn flags(self) -> u8 {
+        match self {
+            Self::Delta => 0,
+            Self::Keyframe => KEYFRAME_FLAG,
+            Self::Title => TITLE_FLAG,
+        }
+    }
+
+    const fn from_flags(flags: u8) -> Self {
+        if flags & TITLE_FLAG != 0 {
+            Self::Title
+        } else {
+            Self::picture(flags & KEYFRAME_FLAG != 0)
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UnitHeader {
     pub len: u32,
     pub pts: i64,
-    pub keyframe: bool,
+    pub kind: UnitKind,
 }
 
 impl UnitHeader {
@@ -23,7 +58,7 @@ impl UnitHeader {
         let (pts, flags) = rest.split_at_mut(8);
         len.copy_from_slice(&self.len.to_le_bytes());
         pts.copy_from_slice(&self.pts.to_le_bytes());
-        flags.fill(if self.keyframe { KEYFRAME_FLAG } else { 0 });
+        flags.fill(self.kind.flags());
         header
     }
 
@@ -33,18 +68,26 @@ impl UnitHeader {
         Self {
             len: u32::from_le_bytes(*len),
             pts: i64::from_le_bytes(*pts),
-            keyframe: flags
-                .first()
-                .is_some_and(|flags| flags & KEYFRAME_FLAG != 0),
+            kind: UnitKind::from_flags(flags.first().copied().unwrap_or_default()),
         }
     }
+}
+
+pub fn write_title(writer: &mut impl Write, title: &str) -> io::Result<()> {
+    let header = UnitHeader {
+        len: u32::try_from(title.len()).map_err(io::Error::other)?,
+        pts: 0,
+        kind: UnitKind::Title,
+    };
+    writer.write_all(&header.encode())?;
+    writer.write_all(title.as_bytes())
 }
 
 pub fn write_unit(writer: &mut impl Write, unit: &EncodedUnit<'_>) -> io::Result<()> {
     let header = UnitHeader {
         len: u32::try_from(unit.data.len()).map_err(io::Error::other)?,
         pts: unit.pts,
-        keyframe: unit.keyframe,
+        kind: UnitKind::picture(unit.keyframe),
     };
     writer.write_all(&header.encode())?;
     writer.write_all(unit.data)
@@ -149,19 +192,21 @@ mod tests {
                 pts: 21,
             },
         )?;
+        write_title(&mut stream, "desk Files")?;
         let mut source = Trickle(&stream);
         let mut reader = UnitReader::default();
         let mut units = Vec::new();
         while reader.fill_from(&mut source)? != Fill::Closed {
             while let Some((header, body)) = reader.next_unit()? {
-                units.push((header.pts, header.keyframe, body.to_vec()));
+                units.push((header.pts, header.kind, body.to_vec()));
             }
         }
         assert_eq!(
             units,
             [
-                (5, true, vec![0, 0, 1, 0x40]),
-                (21, false, vec![0, 0, 1, 2, 9])
+                (5, UnitKind::Keyframe, vec![0, 0, 1, 0x40]),
+                (21, UnitKind::Delta, vec![0, 0, 1, 2, 9]),
+                (0, UnitKind::Title, b"desk Files".to_vec()),
             ]
         );
         Ok(())
@@ -172,7 +217,7 @@ mod tests {
         let header = UnitHeader {
             len: u32::MAX,
             pts: 0,
-            keyframe: false,
+            kind: UnitKind::Delta,
         }
         .encode();
         let mut reader = UnitReader::default();

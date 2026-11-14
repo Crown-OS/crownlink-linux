@@ -48,6 +48,16 @@ pub struct CameraOptions {
     pub limits: VideoLimits,
 }
 
+/// The size, rate and scale of the virtual output a peer shows as a monitor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct MonitorMode {
+    pub width: u16,
+    pub height: u16,
+    pub refresh_mhz: u32,
+    /// In 1/120 steps, as `wp_fractional_scale_v1` expresses it.
+    pub scale_120: u16,
+}
+
 /// How to use a peer as an extra monitor for this computer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MonitorOptions {

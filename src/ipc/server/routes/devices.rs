@@ -139,6 +139,22 @@ pub(super) fn route(
                 reply: call.responder(router),
             });
         }
+        <set_monitor_mode as MethodMsg>::SELECTOR => {
+            let args = call.args::<set_monitor_mode>()?;
+            router.forward(PeerRequest::SetMonitorMode {
+                id: args.id,
+                mode: args.mode,
+                reply: call.responder(router),
+            });
+        }
+        <set_viewer_title as MethodMsg>::SELECTOR => {
+            let args = call.args::<set_viewer_title>()?;
+            router.forward(PeerRequest::SetViewerTitle {
+                id: args.id,
+                title: args.title,
+                reply: call.responder(router),
+            });
+        }
         <pickup_call as MethodMsg>::SELECTOR => {
             let args = call.args::<pickup_call>()?;
             router.forward(PeerRequest::PickupCall {

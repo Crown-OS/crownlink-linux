@@ -46,6 +46,12 @@ pub enum InputEvent {
         dx: f32,
         dy: f32,
     },
+    /// The viewer's window was configured to this logical size. Not input for the peer: the
+    /// daemon takes it out of the stream.
+    WindowSize {
+        width: u16,
+        height: u16,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]

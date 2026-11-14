@@ -14,8 +14,8 @@ use crownlink_linux::ipc::proto::{
     CaptureStatus, CastOptions, Collections, ContactPage, Conversation, ConversationPage,
     DeviceClass, DeviceId, DeviceInfo, DeviceLocation, Edge, Feature, FeatureSet, FeatureState,
     FocusInfo, FocusMode, HeadsetOwner, LinkKind, LiveActivity, LocalIdentity, MessageDraft,
-    MessagePage, MirrorOptions, MonitorOptions, PageRequest, PairingOffer, Participant, Topic,
-    Transfer, VoicemailPage,
+    MessagePage, MirrorOptions, MonitorMode, MonitorOptions, PageRequest, PairingOffer,
+    Participant, Topic, Transfer, VoicemailPage,
 };
 use crownos_ipc::{blocking, Error, MethodMsg, RemoteError, ServiceBuilder};
 
@@ -139,6 +139,14 @@ impl proto::Handler for FakeHub {
     }
 
     fn set_unicursor_edge(&mut self, id: DeviceId, _edge: Edge) -> Result<(), RemoteError> {
+        known(id)
+    }
+
+    fn set_monitor_mode(&mut self, id: DeviceId, _mode: MonitorMode) -> Result<(), RemoteError> {
+        known(id)
+    }
+
+    fn set_viewer_title(&mut self, id: DeviceId, _title: String) -> Result<(), RemoteError> {
         known(id)
     }
 

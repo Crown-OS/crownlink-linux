@@ -17,12 +17,14 @@ use wayland_protocols::wp::presentation_time::client::wp_presentation_feedback::
 };
 use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
 use wayland_protocols::wp::viewporter::client::wp_viewporter::WpViewporter;
+use wayland_protocols::xdg::decoration::zv1::client::zxdg_decoration_manager_v1::ZxdgDecorationManagerV1;
+use wayland_protocols::xdg::decoration::zv1::client::zxdg_toplevel_decoration_v1::ZxdgToplevelDecorationV1;
 use wayland_protocols::xdg::shell::client::xdg_surface::{self, XdgSurface};
 use wayland_protocols::xdg::shell::client::xdg_toplevel::{self, XdgToplevel};
 use wayland_protocols::xdg::shell::client::xdg_wm_base::{self, XdgWmBase};
 
 use super::buffers::BufferKey;
-use crate::media::present::input::InputMessage;
+use crate::media::present::input::{InputEvent, InputMessage};
 use crate::media::video::DrmFourcc;
 use crate::util::latency::LatencyWindow;
 
@@ -98,6 +100,8 @@ delegate_noop!(State: ignore WlCompositor);
 delegate_noop!(State: ignore WlSurface);
 delegate_noop!(State: ignore WpViewporter);
 delegate_noop!(State: ignore WpViewport);
+delegate_noop!(State: ignore ZxdgDecorationManagerV1);
+delegate_noop!(State: ignore ZxdgToplevelDecorationV1);
 
 impl Dispatch<XdgWmBase, ()> for State {
     fn event(
@@ -141,7 +145,17 @@ impl Dispatch<XdgToplevel, ()> for State {
     ) {
         match event {
             xdg_toplevel::Event::Configure { width, height, .. } => {
-                state.window_size = (width, height)
+                if (width, height) != state.window_size
+                    && let (Ok(width), Ok(height)) = (u16::try_from(width), u16::try_from(height))
+                    && width > 0
+                    && height > 0
+                {
+                    state.input.push(InputMessage {
+                        time_ms: 0,
+                        event: InputEvent::WindowSize { width, height },
+                    });
+                }
+                state.window_size = (width, height);
             }
             xdg_toplevel::Event::Close => state.closed = true,
             _ => {}

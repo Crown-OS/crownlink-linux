@@ -38,7 +38,8 @@ pub use paging::PageRequest;
 pub use pairing::PairingOffer;
 pub use phone::{CallKind, CallLogEntry, CallLogPage, Voicemail, VoicemailPage};
 pub use stream::{
-    CameraLens, CameraOptions, Direction, Edge, MirrorOptions, MonitorOptions, VideoLimits,
+    CameraLens, CameraOptions, Direction, Edge, MirrorOptions, MonitorMode, MonitorOptions,
+    VideoLimits,
 };
 pub use topic::Topic;
 pub use transfer::{Transfer, TransferState};

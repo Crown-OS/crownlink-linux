@@ -7,7 +7,7 @@ use std::os::fd::{AsFd, BorrowedFd};
 use std::time::Duration;
 
 use rustix::event::{poll, PollFd, PollFlags, Timespec};
-use wayland_client::backend::WaylandError;
+use wayland_client::backend::{ReadEventsGuard, WaylandError};
 use wayland_client::globals::registry_queue_init;
 use wayland_client::protocol::wl_buffer::WlBuffer;
 use wayland_client::protocol::wl_compositor::WlCompositor;
@@ -19,6 +19,10 @@ use wayland_protocols::wp::linux_dmabuf::zv1::client::zwp_linux_dmabuf_v1::ZwpLi
 use wayland_protocols::wp::presentation_time::client::wp_presentation::WpPresentation;
 use wayland_protocols::wp::viewporter::client::wp_viewport::WpViewport;
 use wayland_protocols::wp::viewporter::client::wp_viewporter::WpViewporter;
+use wayland_protocols::xdg::decoration::zv1::client::zxdg_decoration_manager_v1::ZxdgDecorationManagerV1;
+use wayland_protocols::xdg::decoration::zv1::client::zxdg_toplevel_decoration_v1::{
+    Mode as DecorationMode, ZxdgToplevelDecorationV1,
+};
 use wayland_protocols::xdg::shell::client::xdg_surface::XdgSurface;
 use wayland_protocols::xdg::shell::client::xdg_toplevel::XdgToplevel;
 use wayland_protocols::xdg::shell::client::xdg_wm_base::XdgWmBase;
@@ -59,7 +63,9 @@ pub struct Presenter {
     state: State,
     surface: WlSurface,
     _xdg_surface: XdgSurface,
-    _toplevel: XdgToplevel,
+    toplevel: XdgToplevel,
+    /// Asks the compositor to draw the frame, whose titlebar carries the title.
+    _decoration: Option<ZxdgToplevelDecorationV1>,
     viewport: Option<WpViewport>,
     dmabuf: ZwpLinuxDmabufV1,
     presentation: Option<WpPresentation>,
@@ -85,6 +91,14 @@ impl Presenter {
         let toplevel = xdg_surface.get_toplevel(&handle, ());
         toplevel.set_title(title.to_owned());
         toplevel.set_app_id(APP_ID.to_owned());
+        let decoration = globals
+            .bind::<ZxdgDecorationManagerV1, _, _>(&handle, 1..=1, ())
+            .ok()
+            .map(|manager| {
+                let decoration = manager.get_toplevel_decoration(&toplevel, &handle, ());
+                decoration.set_mode(DecorationMode::ServerSide);
+                decoration
+            });
         let viewport = viewporter.map(|viewporter| viewporter.get_viewport(&surface, &handle, ()));
         surface.commit();
 
@@ -98,7 +112,8 @@ impl Presenter {
             state,
             surface,
             _xdg_surface: xdg_surface,
-            _toplevel: toplevel,
+            toplevel,
+            _decoration: decoration,
             viewport,
             dmabuf,
             presentation,
@@ -148,7 +163,7 @@ impl Presenter {
             };
             other_ready = ready;
             if wayland_ready {
-                guard.read()?;
+                read(guard)?;
             }
         }
         self.queue.dispatch_pending(&mut self.state)?;
@@ -190,6 +205,10 @@ impl Presenter {
     }
 
     /// Input gathered since the last call, oldest first.
+    pub fn set_title(&self, title: &str) {
+        self.toplevel.set_title(title.to_owned());
+    }
+
     pub fn drain_input(&mut self) -> impl Iterator<Item = InputMessage> + '_ {
         self.state.input.drain(..)
     }
@@ -282,6 +301,15 @@ fn flush(queue: &EventQueue<State>) -> Result<(), PresentError> {
     match queue.flush() {
         Err(WaylandError::Io(error)) if error.kind() == ErrorKind::WouldBlock => Ok(()),
         outcome => outcome.map_err(PresentError::from),
+    }
+}
+
+/// Reads what the compositor sent. A readiness that turns out to be empty is not an error:
+/// poll reports the socket readable on wakeups that carry no complete message yet.
+fn read(guard: ReadEventsGuard) -> Result<(), PresentError> {
+    match guard.read() {
+        Err(WaylandError::Io(error)) if error.kind() == ErrorKind::WouldBlock => Ok(()),
+        outcome => outcome.map(drop).map_err(PresentError::from),
     }
 }
 

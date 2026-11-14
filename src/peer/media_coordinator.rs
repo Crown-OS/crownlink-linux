@@ -6,10 +6,11 @@ use llts_node::{MediaRequest, RemoteCommand};
 use llts_signaling::device::{DeviceId, Feature};
 use llts_signaling::message::{StreamRef, UnicursorEnter, UnicursorLeave};
 
-use crate::ipc::proto::Edge;
+use crate::ipc::proto::{Edge, MonitorMode};
 use crate::peer::wakeup::RuntimeWaker;
 
 const UNICURSOR_UNAVAILABLE: &str = "unicursor is not available on this computer";
+const MONITOR_UNAVAILABLE: &str = "monitors are not available on this computer";
 
 /// One encoded frame or Opus packet, owned so it can cross from the encoder's thread.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,6 +47,14 @@ pub enum MediaOutput {
         peer: DeviceId,
         signal: UnicursorSignal,
     },
+    /// The window showing the peer's screen was configured to this logical size.
+    ViewerResized {
+        peer: DeviceId,
+        width: u16,
+        height: u16,
+    },
+    /// The window shown on the output the peer displays changed its title.
+    MonitorTitle { peer: DeviceId, title: String },
     /// The pipeline behind `feature` stopped on its own; the runtime ends the feature on both
     /// ends and reports `reason`.
     Failed {
@@ -79,6 +88,24 @@ pub trait MediaCoordinator: Send + std::fmt::Debug {
     /// Fails with a reason for the user when input capture is unavailable.
     fn set_unicursor_edge(&mut self, _peer: DeviceId, _edge: Edge) -> Result<(), String> {
         Err(UNICURSOR_UNAVAILABLE.to_owned())
+    }
+
+    /// Gives `peer`'s monitor this mode, now if it is streaming and from its start otherwise.
+    ///
+    /// # Errors
+    ///
+    /// Fails with a reason for the user when this build runs no monitors.
+    fn set_monitor_mode(&mut self, _peer: DeviceId, _mode: MonitorMode) -> Result<(), String> {
+        Err(MONITOR_UNAVAILABLE.to_owned())
+    }
+
+    /// Retitles the window showing `peer`'s screen.
+    ///
+    /// # Errors
+    ///
+    /// Fails when no such window is open.
+    fn set_viewer_title(&mut self, _peer: DeviceId, _title: String) -> Result<(), String> {
+        Err(MONITOR_UNAVAILABLE.to_owned())
     }
 
     fn poll_output(&mut self) -> Option<MediaOutput> {
