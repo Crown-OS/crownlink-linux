@@ -6,6 +6,7 @@ rust-version = "1.97"
 description = "CrownOS cross-device hub: pairing, sync and low-latency media with nearby devices"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/crown-os/crownlink-linux"
+default-run = "crownlink-linux"
 
 # The `crownlink` IPC schema only. Clients such as crownotify and
 # crownsettings depend on this with `default-features = false`.
