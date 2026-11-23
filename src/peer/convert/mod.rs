@@ -73,6 +73,8 @@ pub(crate) const fn signaling_feature(feature: Feature) -> SignalingFeature {
         Feature::WifiSharing => SignalingFeature::WifiSharing,
         Feature::FindMy => SignalingFeature::FindMy,
         Feature::Links => SignalingFeature::Links,
+        Feature::RemoteInput => SignalingFeature::RemoteInput,
+        Feature::DeviceControl => SignalingFeature::DeviceControl,
     }
 }
 
@@ -101,6 +103,8 @@ pub(crate) const fn ipc_feature(feature: SignalingFeature) -> Feature {
         SignalingFeature::WifiSharing => Feature::WifiSharing,
         SignalingFeature::FindMy => Feature::FindMy,
         SignalingFeature::Links => Feature::Links,
+        SignalingFeature::RemoteInput => Feature::RemoteInput,
+        SignalingFeature::DeviceControl => Feature::DeviceControl,
     }
 }
 

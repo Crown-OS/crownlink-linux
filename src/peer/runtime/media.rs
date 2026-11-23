@@ -5,7 +5,7 @@ use llts_core::send::EncodedSlice;
 use llts_core::session::{Action, Event};
 use llts_core::stream::StreamKey;
 use llts_node::{AppCommand, MediaRole, OutgoingCommand};
-use llts_signaling::device::DeviceId;
+use llts_signaling::device::{DeviceId, Feature};
 use llts_signaling::message::{MuxClass, StreamRef};
 use llts_transport::security::StaticKey;
 use llts_transport::session::DriverEvent;
@@ -23,6 +23,11 @@ pub(crate) const INPUT_STREAM: StreamKey = StreamKey::new(StreamClass::Input, 0)
 
 fn stream_key(stream: StreamRef) -> Option<StreamKey> {
     StreamClass::from_byte(stream.class.as_byte()).map(|class| StreamKey::new(class, stream.index))
+}
+
+const fn carries_input(action: &Action) -> bool {
+    matches!(action, Action::InputKeyState { .. })
+        || matches!(action, Action::Deliver { stream, .. } if matches!(stream.class, StreamClass::Input))
 }
 
 fn slice(frame: &EncodedFrame) -> EncodedSlice<'_> {
@@ -49,7 +54,17 @@ impl PeerLoop {
             tracing::debug!(?stream, "a frame for a stream nothing decodes");
             return;
         }
+        if carries_input(&action) && !self.grants_input(&peer) {
+            tracing::debug!(%peer, "input from a peer without the remote input grant");
+            return;
+        }
         self.streams.coordinator().on_session_action(peer, action);
+    }
+
+    fn grants_input(&self, peer: &DeviceId) -> bool {
+        self.node
+            .device(peer)
+            .is_some_and(|device| device.available.contains(Feature::RemoteInput))
     }
 
     fn decodes(&self, peer: &DeviceId, stream: StreamKey) -> bool {

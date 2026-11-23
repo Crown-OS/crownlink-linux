@@ -29,10 +29,14 @@ pub enum Feature {
     WifiSharing,
     FindMy,
     Links,
+    /// The peer's pointer and keys reach this computer's seat while a mirror or monitor runs.
+    RemoteInput,
+    /// The peer may lock this computer, change its volume and control its media.
+    DeviceControl,
 }
 
 impl Feature {
-    pub const ALL: [Self; 23] = [
+    pub const ALL: [Self; 25] = [
         Self::Mirror,
         Self::Camera,
         Self::Mic,
@@ -56,6 +60,8 @@ impl Feature {
         Self::WifiSharing,
         Self::FindMy,
         Self::Links,
+        Self::RemoteInput,
+        Self::DeviceControl,
     ];
 
     const fn bit(self) -> u32 {

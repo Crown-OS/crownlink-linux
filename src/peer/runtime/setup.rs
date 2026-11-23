@@ -75,10 +75,12 @@ fn local_device(config: &DaemonConfig) -> LocalDevice {
 
 fn feature_store(config: &DaemonConfig) -> FeatureStore {
     let path = config.paths.peer_features.clone();
-    FeatureStore::open(path.clone()).unwrap_or_else(|error| {
-        tracing::warn!(error = %error_chain(&error), "starting with default feature choices");
-        FeatureStore::empty(path)
-    })
+    FeatureStore::open_or_upgrade(path.clone(), &config.paths.legacy_peer_features).unwrap_or_else(
+        |error| {
+            tracing::warn!(error = %error_chain(&error), "starting with default feature choices");
+            FeatureStore::empty(path)
+        },
+    )
 }
 
 impl PeerLoop {

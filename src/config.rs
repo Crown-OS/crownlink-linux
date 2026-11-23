@@ -38,6 +38,8 @@ pub struct DaemonPaths {
     pub identity: PathBuf,
     pub trust_store: PathBuf,
     pub peer_features: PathBuf,
+    /// The feature store from before the grants, read once to fill `peer_features`.
+    pub legacy_peer_features: PathBuf,
     /// ffsp's link store, which pairing writes into so file transfers trust the same devices.
     pub ffsp_links: PathBuf,
     /// Overrides the crownos-ipc socket directory, for running several daemons side by side.
@@ -95,7 +97,8 @@ impl DaemonPaths {
         Self {
             identity: data_directory.join("identity"),
             trust_store: data_directory.join("trust.pc"),
-            peer_features: data_directory.join("features.pc"),
+            peer_features: data_directory.join("features-v2.pc"),
+            legacy_peer_features: data_directory.join("features.pc"),
             ffsp_links: data_home.join(FFSP_LINKS),
             ipc_directory,
             data_directory,

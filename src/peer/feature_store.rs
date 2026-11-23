@@ -1,7 +1,7 @@
 //! Which features the user allows each paired device, kept across restarts.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use llts_signaling::device::{DeviceId, FeatureSet};
 
@@ -43,6 +43,21 @@ impl FeatureStore {
             Err(source) => return Err(FeatureStoreError::Io { path, source }),
         };
         Ok(Self { path, features })
+    }
+
+    /// The store at `path`, or the one at `legacy` from before [`FeatureSet::GRANTS`] existed,
+    /// with every grant given to each device, as the old build gave them implicitly.
+    pub(crate) fn open_or_upgrade(path: PathBuf, legacy: &Path) -> Result<Self, FeatureStoreError> {
+        if path.exists() || !legacy.exists() {
+            return Self::open(path);
+        }
+        let mut store = Self::open(legacy.to_owned())?;
+        store.path = path;
+        for enabled in store.features.values_mut() {
+            *enabled = enabled.union(FeatureSet::GRANTS);
+        }
+        store.save()?;
+        Ok(store)
     }
 
     /// An empty store at `path`, for when the stored one could not be read.
@@ -109,6 +124,30 @@ mod tests {
         store.remove(&phone)?;
         assert_eq!(FeatureStore::open(path.clone())?.enabled(&phone), None);
         let _ = std::fs::remove_dir_all(path.parent().unwrap_or(&path));
+        Ok(())
+    }
+
+    #[test]
+    fn a_store_from_before_the_grants_gives_every_device_the_grants(
+    ) -> Result<(), FeatureStoreError> {
+        let directory =
+            std::env::temp_dir().join(format!("crownlink-grants-{}", std::process::id()));
+        let legacy = directory.join("features.pc");
+        let path = directory.join("features-v2.pc");
+        let phone = DeviceId([6; 32]);
+        let choice = FeatureSet::EMPTY.with(Feature::Battery);
+        FeatureStore::open(legacy.clone())?.set(phone, choice)?;
+
+        let upgraded = FeatureStore::open_or_upgrade(path.clone(), &legacy)?;
+        assert_eq!(
+            upgraded.enabled(&phone),
+            Some(choice.union(FeatureSet::GRANTS))
+        );
+        assert_eq!(
+            FeatureStore::open(path)?.enabled(&phone),
+            Some(choice.union(FeatureSet::GRANTS))
+        );
+        let _ = std::fs::remove_dir_all(&directory);
         Ok(())
     }
 }
